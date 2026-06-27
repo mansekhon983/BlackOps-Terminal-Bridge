@@ -1,0 +1,412 @@
+# Terminal-relevant defined strings + XREFs
+# program: BlackOps.exe
+# imageBase: 00400000
+
+STRING @ 009a4b0c  "global_zork_command"
+    XREF from 00423e9d  in  FUN_00422ea0 @ 00422ea0
+
+STRING @ 009a7388  "login"
+    XREF from 00b715a8  in  ?
+
+STRING @ 009a76c0  "Incorrect number of parameters passed to ShowUI()\nUSAGE: ShowUI( <localClientNum>, <menuName>, <newState> )\n"
+    XREF from 00589251  in  ?
+
+STRING @ 009a89c8  "Incorrect number of parameters\nUSAGE: setVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <gree..."
+    XREF from 00895363  in  FUN_00895340 @ 00895340
+
+STRING @ 009a8f20  "login              starts a new login session on the current system"
+    XREF from 00551ced  in  ?
+
+STRING @ 009a9148  "Incorrect number of parameters passed to AnimateUI()\nUSAGE: AnimateUI( <localClientNum>, <menuName>, <itemName>, <newSt..."
+    XREF from 00409742  in  ?
+
+STRING @ 009aa32c  "Error: %s must be in an IWD or not in the main directory\n"
+    XREF from 0085fc65  in  FUN_0085f9c0 @ 0085f9c0
+
+STRING @ 009ad918  "Incorrect number of parameters\nUSAGE: SetWaterFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <gr..."
+    XREF from 0089591d  in  FUN_00895900 @ 00895900
+
+STRING @ 009af12c  "Incorrect mode name passed to target_setAttackMode().\n"
+    XREF from 0040e6c3  in  ?
+
+STRING @ 009afee8  "incorrect header check"
+    XREF from 005b8ad6  in  FUN_005b89f0 @ 005b89f0
+
+STRING @ 009b4480  "BD_AUTH_INCORRECT_PASSWORD"
+    XREF from 00b7493c  in  ?
+
+STRING @ 009b4750  "setWaterFog: Old syntax used. Please update script.\n"
+    XREF from 00895a60  in  FUN_00895900 @ 00895900
+
+STRING @ 009b5790  "Call to GetProcAddress failed to find MiniDumpWriteDump. The DBGHELP.DLL is possibly outdated."
+    XREF from 005b3e15  in  FUN_005b3bb0 @ 005b3bb0
+    XREF from 005b3e64  in  FUN_005b3bb0 @ 005b3bb0
+
+STRING @ 009b59ec  "popmenu_content_warning_doa"
+    XREF from 0069f581  in  FUN_0069f560 @ 0069f560
+
+STRING @ 009b7134  "DoAllPlayersHaveMapForDemo"
+    XREF from 00b7c17c  in  ?
+
+STRING @ 009b75e4  "MENU_LOGIN_SUCCEED"
+    XREF from 0051b7c4  in  FUN_0051b6e0 @ 0051b6e0
+
+STRING @ 009bafa0  "help               display's this help screen"
+    XREF from 00551cd8  in  ?
+
+STRING @ 009bd05c  "Directory of %s %s\n"
+    XREF from 005018fb  in  ?
+
+STRING @ 009c5878  "sv_privatePassword"
+    XREF from 00698809  in  FUN_00698260 @ 00698260
+
+STRING @ 009c785c  "Working directory: %s\n"
+    XREF from 0050a8f0  in  FUN_0050a730 @ 0050a730
+
+STRING @ 009c78d0  "Incorrect number of parameters\nUSAGE: ui3dsetwindow(<window id>, <x>, <y>, <width>, <height>)\n"
+    XREF from 00787764  in  FUN_00787750 @ 00787750
+
+STRING @ 009cb240  "bad syntax"
+    XREF from 0043907b  in  FUN_00438e00 @ 00438e00
+    XREF from 0043a6f3  in  FUN_00438e00 @ 00438e00
+
+STRING @ 009cd37c  "Incorrect number of parameters"
+    XREF from 00808084  in  FUN_00808070 @ 00808070
+    XREF from 00808134  in  FUN_00808120 @ 00808120
+    XREF from 007fe164  in  FUN_007fe150 @ 007fe150
+    XREF from 007fd9b3  in  FUN_007fd990 @ 007fd990
+    XREF from 007fdb04  in  FUN_007fdaf0 @ 007fdaf0
+    XREF from 007fdbb0  in  FUN_007fdb90 @ 007fdb90
+    XREF from 007fdf04  in  FUN_007fdef0 @ 007fdef0
+    XREF from 007fe004  in  FUN_007fdff0 @ 007fdff0
+    XREF from 007fd16e  in  FUN_007fd150 @ 007fd150
+    XREF from 007fd503  in  FUN_007fd4e0 @ 007fd4e0
+    XREF from 007fd7a3  in  FUN_007fd780 @ 007fd780
+    XREF from 00644e7f  in  FUN_00644e60 @ 00644e60
+    XREF from 00894163  in  FUN_00894140 @ 00894140
+    XREF from 0089426e  in  FUN_00894250 @ 00894250
+    XREF from 0078c0c3  in  ?
+
+STRING @ 009cd6c8  "\nDW_LOGIN (%i ms)\n"
+    XREF from 00546f6e  in  FUN_005469a0 @ 005469a0
+
+STRING @ 009cde68  "GamerProfile_LogInProfile took %ims\n"
+    XREF from 008b4fd1  in  FUN_008b4ee0 @ 008b4ee0
+
+STRING @ 009cec30  "Docs\TechHelp\Tech Help\Information\DirectX.htm"
+    XREF from 0063424b  in  FUN_00634210 @ 00634210
+
+STRING @ 009cf604  "BD_AUTH_INCORRECT_LICENSE_CODE"
+    XREF from 00b74914  in  ?
+
+STRING @ 009d0aa0  "terminal_resources/systems.csv"
+    XREF from 005aa2dd  in  FUN_005aa2a0 @ 005aa2a0
+    XREF from 00b7152c  in  ?
+
+STRING @ 009d1ee4  "Incorrect usage for getpartname()"
+    XREF from 005e8d21  in  ?
+
+STRING @ 009d22a8  "Mail Version 0.72.  Type ? for help."
+    XREF from 00427be6  in  ?
+    XREF from 00427dae  in  ?
+
+STRING @ 009d5360  "Incorrect number of parameters\nUSAGE: setExpFog(<startDist>, <halfwayDist>, <red>, <green>, <blue>, <transition time>)\..."
+    XREF from 007fe824  in  FUN_007fe810 @ 007fe810
+
+STRING @ 009d610c  "Incorrect use of getnumparts()"
+    XREF from 00665da1  in  ?
+
+STRING @ 009d7114  "help			    displays this help information"
+    XREF from 00551c2a  in  ?
+
+STRING @ 009daa1c  "arcademode"
+    XREF from 0082bc70  in  FUN_0082bb60 @ 0082bb60
+    XREF from 0088ab7f  in  FUN_0088a760 @ 0088a760
+    XREF from 004e9c21  in  FUN_004e9c10 @ 004e9c10
+    XREF from 0056f9bc  in  FUN_0056f8b0 @ 0056f8b0
+    XREF from 005df642  in  FUN_005df580 @ 005df580
+    XREF from 005d6944  in  FUN_005d6940 @ 005d6940
+    XREF from 005b5094  in  FUN_005b4ec0 @ 005b4ec0
+    XREF from 008344e7  in  FUN_00834310 @ 00834310
+    XREF from 00886b55  in  FUN_00886620 @ 00886620
+
+STRING @ 009dd8b4  "Incorrect number of results in expression\n"
+    XREF from 0085db67  in  FUN_0085da40 @ 0085da40
+
+STRING @ 009deea0  "Incorrect number of params for 'FireWeapon'.  Either 2,3 or none."
+    XREF from 0089600d  in  FUN_00895f60 @ 00895f60
+
+STRING @ 009dfb98  "Syntax - SetClanName <ClanTag>\n"
+    XREF from 00836c90  in  FUN_00836b80 @ 00836b80
+
+STRING @ 009e01a0  "rlogin [system]    attempts a login session on a remote system"
+    XREF from 00551d1a  in  ?
+
+STRING @ 009e09b4  "Incorrect badplace_cylinder() call.\n"
+    XREF from 00800324  in  FUN_00800310 @ 00800310
+
+STRING @ 009e1e2c  "usage: dir <directory> [extension]\n"
+    XREF from 005019ad  in  ?
+
+STRING @ 009e1f54  "Incorrect number of arguments supplied to PrecacheFastFile\n"
+    XREF from 0060a789  in  FUN_0060a770 @ 0060a770
+    XREF from 005ce9e9  in  FUN_005ce9d0 @ 005ce9d0
+
+STRING @ 009eca0c  "terminal_resources/users.csv"
+    XREF from 005aa2dd  in  FUN_005aa2a0 @ 005aa2a0
+    XREF from 00b71530  in  ?
+
+STRING @ 009ed318  "syntax: devsave <name>\n"
+    XREF from 008337b3  in  ?
+
+STRING @ 009eed7c  "net_socksPassword"
+    XREF from 0086817e  in  FUN_00868060 @ 00868060
+
+STRING @ 009ef280  "Welcome to Alicia, your virtual therapist.  (type quit to exit)"
+    XREF from 00461adb  in  ?
+
+STRING @ 009ef890  "Syntax: cubemapShot size basefilename [lighting r g b | fresnel n0 n1]\n"
+    XREF from 007a18f0  in  FUN_007a18f0 @ 007a18f0
+
+STRING @ 009f1110  "BD_CRUX_PASSWORD_INVALID"
+    XREF from 00b74aa4  in  ?
+
+STRING @ 009f1e90  "uin_text_type_zork"
+    XREF from 005083b8  in  FUN_00508230 @ 00508230
+    XREF from 0047ed98  in  FUN_0047eb90 @ 0047eb90
+
+STRING @ 009f35cc  "setVolFog: Old syntax used. Please update script.\n"
+    XREF from 007fece3  in  FUN_007feae0 @ 007feae0
+    XREF from 007ff068  in  FUN_007fee10 @ 007fee10
+
+STRING @ 009f3998  "terminal"
+    XREF from 0054b883  in  FUN_0054b880 @ 0054b880
+    XREF from 0054b8af  in  FUN_0054b880 @ 0054b880
+    XREF from 005aa2aa  in  FUN_005aa2a0 @ 005aa2a0
+    XREF from 00646743  in  FUN_00646740 @ 00646740
+
+STRING @ 009f5f40  "syntax error in #if/#elif"
+    XREF from 00572505  in  FUN_00572080 @ 00572080
+
+STRING @ 009fb79c  "     ?          This help information"
+    XREF from 00427992  in  ?
+
+STRING @ 009fc3b8  "cd [ |.|..|path]   changes the current directory."
+    XREF from 00551c57  in  ?
+
+STRING @ 009fd594  "^3Error^1:  Unknown Command - try "help""
+    XREF from 0055f87a  in  FUN_0055f800 @ 0055f800
+
+STRING @ 009fe14c  "Incorrect number of parameters for IsFXPlaying"
+    XREF from 0056a8e1  in  ?
+    XREF from 005ba7b1  in  ?
+
+STRING @ 009febf0  "password hash is %s\n"
+    XREF from 00546e8d  in  FUN_005469a0 @ 005469a0
+
+STRING @ 00a00040  "BD_CRUX_EMAIL_PASSWORD_INVALID"
+    XREF from 00b74a94  in  ?
+
+STRING @ 00a040bc  "terminal_resources/Zork1.z3"
+    XREF from 00560b9e  in  FUN_00560b80 @ 00560b80
+    XREF from 004dd1b0  in  FUN_004dd170 @ 004dd170
+
+STRING @ 00a06ec4  "zork.dat"
+    XREF from 004af076  in  ?
+    XREF from 00424ef6  in  ?
+
+STRING @ 00a09d60  "global_zork_finished_game"
+    XREF from 00423d55  in  FUN_00422ea0 @ 00422ea0
+
+STRING @ 00a0b420  "Incorrect number of parameters.\n"
+    XREF from 004f54c2  in  ?
+    XREF from 00568783  in  ?
+    XREF from 005e9622  in  ?
+
+STRING @ 00a0c544  "Incorrect usage for timedradiusdamage()"
+    XREF from 005b5434  in  FUN_005b5420 @ 005b5420
+
+STRING @ 00a0e65c  "alicia"
+    XREF from 00b71580  in  ?
+
+STRING @ 00a116ec  "^3Error^1:  Too many logins - Use exit to close open shells"
+    XREF from 00554751  in  FUN_005545e0 @ 005545e0
+
+STRING @ 00a134a8  "System Help:"
+    XREF from 00551c00  in  ?
+
+STRING @ 00a146e0  "password"
+    XREF from 004d1fac  in  FUN_004d1fa0 @ 004d1fa0
+    XREF from 005c10b7  in  FUN_005c1080 @ 005c1080
+    XREF from 005914a8  in  FUN_00590c10 @ 00590c10
+    XREF from 004594e5  in  FUN_00458e40 @ 00458e40
+    XREF from 0051e322  in  FUN_0051e280 @ 0051e280
+
+STRING @ 00a17d0c  "rlogin"
+    XREF from 00b715d0  in  ?
+
+STRING @ 00a18ab0  "@GAME_INVALIDPASSWORD"
+    XREF from 00888be4  in  ?
+
+STRING @ 00a19558  "terminal_resources/terminal_FILES/%s"
+    XREF from 006649c6  in  FUN_006649b0 @ 006649b0
+
+STRING @ 00a199d0  "Incorrect usage for badplace_arc()\n"
+    XREF from 00800174  in  FUN_00800160 @ 00800160
+
+STRING @ 00a1a250  "Mail Help:"
+    XREF from 00427980  in  ?
+
+STRING @ 00a1bc98  "### Invalid file (incorrect length) %s\n"
+    XREF from 008b235d  in  FUN_008b22a0 @ 008b22a0
+
+STRING @ 00a1cab8  "XBOXLIVE_MUSTLOGIN"
+    XREF from 004eafc9  in  FUN_004eafa0 @ 004eafa0
+    XREF from 00b7a620  in  ?
+
+STRING @ 00a1d558  "Incorrect number of parameters\nUSAGE: setVolFog(<localClientNum>, <startDist>, <halfwayDist>, <halfwayHeight>, <baseHei..."
+    XREF from 00895633  in  FUN_00895610 @ 00895610
+
+STRING @ 00a1e350  "cod7zork.zsv"
+    XREF from 0054be57  in  FUN_0054be50 @ 0054be50
+    XREF from 00819053  in  FUN_00818fa0 @ 00818fa0
+    XREF from 0081906a  in  FUN_00818fa0 @ 00818fa0
+    XREF from 00819087  in  FUN_00818fa0 @ 00818fa0
+
+STRING @ 00a21ecc  "foobar"
+    XREF from 00b715f8  in  ?
+
+STRING @ 00a24898  "dir                displays the contents of the current directory"
+    XREF from 00551c81  in  ?
+
+STRING @ 00a28978  "PASSWORD:"
+    XREF from 0055470a  in  FUN_005545e0 @ 005545e0
+    XREF from 005548ac  in  FUN_005545e0 @ 005545e0
+
+STRING @ 00a29b00  "DoAllPlayersHaveMapForDemo() = %d\n"
+    XREF from 008572f8  in  FUN_008572c0 @ 008572c0
+
+STRING @ 00a2c448  "EV_RECHAMBER_WEAPON"
+    XREF from 00b6cc1c  in  ?
+
+STRING @ 00a2d214  "Incorrect number of parameters for playfxontag"
+    XREF from 00894504  in  FUN_008944f0 @ 008944f0
+
+STRING @ 00a2e6e4  "Incorrect number of arguments supplied to FlushGump\n"
+    XREF from 00687aa9  in  FUN_00687a90 @ 00687a90
+
+STRING @ 00a2e7c4  "incorrect data check"
+    XREF from 005b9748  in  FUN_005b89f0 @ 005b89f0
+
+STRING @ 00a3172c  "exit               exits the current login session"
+    XREF from 00551cc3  in  ?
+
+STRING @ 00a38568  "Incorrect number of parameters\nUSAGE: setVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <gree..."
+    XREF from 007feb4c  in  FUN_007feae0 @ 007feae0
+    XREF from 007feed1  in  FUN_007fee10 @ 007fee10
+
+STRING @ 00a39e6c  "Invalid Password"
+    XREF from 005546bc  in  FUN_005545e0 @ 005545e0
+
+STRING @ 00a3a350  "SP_LVL_FRONTEND_ZORK"
+    XREF from 004dd17b  in  FUN_004dd170 @ 004dd170
+
+STRING @ 00a3dbc4  "Incorrect number of parameters\n"
+    XREF from 00803414  in  FUN_00803400 @ 00803400
+    XREF from 007ffb89  in  FUN_007ffb60 @ 007ffb60
+    XREF from 007ffd14  in  FUN_007ffd00 @ 007ffd00
+    XREF from 007ffdfa  in  FUN_007ffde0 @ 007ffde0
+    XREF from 0078677e  in  FUN_00786650 @ 00786650
+    XREF from 00800021  in  ?
+
+STRING @ 00a40730  "Incorrect number of params."
+    XREF from 00786594  in  FUN_00786570 @ 00786570
+
+STRING @ 00a40c90  "ui_browserShowPassword"
+    XREF from 005f15d0  in  FUN_005f1520 @ 005f1520
+
+STRING @ 00a42370  "Incorrect number of parameters for animscripted command"
+    XREF from 008086ce  in  ?
+
+STRING @ 00a426f4  "g_password"
+    XREF from 00571653  in  FUN_005715e0 @ 005715e0
+    XREF from 0056facb  in  FUN_0056f8b0 @ 0056f8b0
+    XREF from 0051e31b  in  FUN_0051e280 @ 0051e280
+    XREF from 00445452  in  FUN_004452b0 @ 004452b0
+
+STRING @ 00a43650  "PhysicsExplosionSphere: Incorrect number of parameters"
+    XREF from 00807f33  in  FUN_00807f10 @ 00807f10
+
+STRING @ 00a46dcc  "Call to LoadLibrary failed to find DBGHELP.DLL."
+    XREF from 005b3e15  in  FUN_005b3bb0 @ 005b3bb0
+    XREF from 005b3e6b  in  FUN_005b3bb0 @ 005b3bb0
+
+STRING @ 00a48524  "### Invalid file (incorrect loop) %s\n"
+    XREF from 008b22e1  in  FUN_008b22a0 @ 008b22a0
+
+STRING @ 00a4bac4  "invalidPassword"
+    XREF from 00a601b0  in  ?
+
+STRING @ 00a4c5d8  "Incorrect number of parameters passed to ForceGameModeMappings()\nUSAGE: ForceGameModeMappings( <localClientNum>, <modeN..."
+    XREF from 00498c91  in  ?
+
+STRING @ 00a4d560  "detachFromTerminal"
+    XREF from 004209b7  in  FUN_00420240 @ 00420240
+
+STRING @ 00a66180  "NtQueryDirectoryFile"
+    XREF from 008b6285  in  _GetFileInformationByHandleEx@16 @ 008b61d9
+
+STRING @ 00b01524  " BD_MEMORY_MAGIC is incorrect."
+    XREF from 00935625  in  FUN_00935600 @ 00935600
+
+STRING @ 00b143c0  "C:\projects_pc\cod\codsrc\libs\libtomcrypt-1.17\src\hashes\helper\hash_memory.c"
+    XREF from 00950c79  in  FUN_00950c70 @ 00950c70
+    XREF from 00950c94  in  FUN_00950c70 @ 00950c70
+    XREF from 00950cb2  in  FUN_00950c70 @ 00950c70
+
+STRING @ 00b30b04  "The environment is incorrect."
+    XREF from 00990d67  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b30b28  "An attempt was made to load a program with an incorrect format."
+    XREF from 00990d5d  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b312a4  "Failed to create a directory for streaming wavebank data."
+    XREF from 00990b5a  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b31d00  "A font file could not be opened because the file, directory, network location, drive, or other storage location does not..."
+    XREF from 00990834  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b31d98  "A font file exists but could not be opened due to access denied, sharing violation, or similar error."
+    XREF from 0099082a  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b34e98  "One or more of the caps bits passed to the callback are incorrect."
+    XREF from 0098f9a5  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b352c4  "Incorrect version of Direct3D or D3DX."
+    XREF from 0098f7eb  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b360b8  "There is not enough Video Memory at this display resolution and number of colors. Reducing resolution might help."
+    XREF from 0098f579  in  FUN_0098f062 @ 0098f062
+
+STRING @ 00b523d8  "Helps cull geometry by angles of portals that are acute when projected onto the screen, value is the cosine of the angle"
+    XREF from 006cb42e  in  FUN_006ca1c0 @ 006ca1c0
+
+STRING @ 00b6a52e  "GetCurrentDirectoryA"
+    (no xrefs)
+
+STRING @ 00b6a61e  "CreateToolhelp32Snapshot"
+    (no xrefs)
+
+STRING @ 00b6a924  "GetSystemDirectoryW"
+    (no xrefs)
+
+STRING @ 00b6a93a  "GetWindowsDirectoryW"
+    (no xrefs)
+
+STRING @ 00b6a9d0  "GetCurrentDirectoryW"
+    (no xrefs)
+
+STRING @ 00b6b27e  "CreateDirectoryA"
+    (no xrefs)
+
+# total matching strings: 116

@@ -8,18 +8,33 @@
 #include "MinHook.h"
 
 // =============================================================================
-// SIGNATURES  --  fill these in from notes/offsets.md as they are confirmed in
-// Ghidra / x32dbg. Until a signature is known, leave it nullptr and that hook
-// is skipped. BlackOps.exe is 32-bit (x86), so conventions are likely
-// __thiscall / __cdecl / __fastcall -- match exactly what the game uses.
+// SIGNATURES  --  confirmed from Ghidra, see notes/offsets.md. BlackOps.exe is
+// 32-bit (x86). Absolute-address operands are wildcarded (?? ?? ?? ??) because
+// the module is ASLR-relocated at load; the scan runs over the relocated image.
 // =============================================================================
 namespace sig {
-    // TODO(RE): the routine that prints one line into the terminal scrollback.
-    constexpr const char* line_append   = nullptr;
-    // TODO(RE): the handler that fires on Enter with the assembled input string.
-    constexpr const char* submit_handler = nullptr;
-    // TODO(RE): the per-frame update/render function (runs every frame).
-    constexpr const char* frame_tick    = nullptr;
+    // line_append = FUN_004ef440 (RVA 0xEF440). __cdecl(text, color, flag, zero).
+    // We CALL this; we do not hook it. No abs operands in prologue -> exact bytes.
+    constexpr const char* line_append =
+        "83 EC 08 8B 44 24 0C 55 56 33 F6 89 74 24 08 33 ED 8D 50 01 8A 08 40 84";
+
+    // line_commit = FUN_00433720 (RVA 0x33720). __cdecl(void). Called after each
+    // line_append. Wildcard the [0xBF8120] operand.
+    constexpr const char* line_commit =
+        "8B 0D ?? ?? ?? ?? B8 1F 85 EB 51 F7 E9 C1 FA 05 8B C2 C1 E8 1F 03 D0 6B";
+
+    // dispatch_submit = FUN_0055f800 (RVA 0x15F800). __cdecl(ctx). Terminal
+    // command dispatcher; runs on the main thread. Our submit hook + M0 anchor.
+    constexpr const char* submit_handler =
+        "83 EC 08 A1 ?? ?? ?? ?? 8D 04 80 8B 04 85 ?? ?? ?? ?? C7 04 24 ?? ?? ?? ??";
+
+    // TODO(RE): per-frame pump for M3 (async output). Not needed for M0/M1.
+    constexpr const char* frame_tick = nullptr;
+
+    // Global: raw typed command line read by the dispatcher (DAT_00bf8130).
+    // Static VA at default base; rebased at runtime -> resolve relative to module
+    // base, not hardcoded. (M1 will read it; left here for reference.)
+    constexpr uintptr_t input_buffer_rva = 0x007F8130;  // 0xBF8130 - 0x400000
 }
 
 namespace {
@@ -32,38 +47,52 @@ void logf(const char* fmt, ...) {
     OutputDebugStringA(buf);
 }
 
-// ---- line_append ------------------------------------------------------------
-// PLACEHOLDER prototype/convention -- correct these once confirmed in x32dbg.
-// Common BO1/idTech form is something like a console/terminal print taking a
-// channel/window context (the likely `this`) and a string. Mirror it exactly.
-using LineAppend_t = void(__thiscall*)(void* termCtx, const char* text);
-LineAppend_t orig_line_append = nullptr;
-void* g_termCtx = nullptr;   // captured from the submit hook at runtime.
+// ---- line_append / line_commit (RESOLVED, not hooked -- we CALL them) --------
+// line_append: void __cdecl(const char* text, int color, int flag, int zero).
+// Mirrors the game's own call: line_append(text, 1, 1, 0); line_commit();
+using LineAppend_t = void(__cdecl*)(const char* text, int color, int flag, int zero);
+using LineCommit_t = void(__cdecl*)();
+LineAppend_t fn_line_append = nullptr;
+LineCommit_t fn_line_commit = nullptr;
 
-// ---- submit_handler ---------------------------------------------------------
-// PLACEHOLDER. The real one assembles the typed command; we read it out and
-// push to g_inbound, then call the original so the game still behaves.
-using SubmitHandler_t = int(__thiscall*)(void* termCtx, const char* input);
-SubmitHandler_t orig_submit = nullptr;
-
-int __fastcall hook_submit(void* termCtx, void* /*edx*/, const char* input) {
-    g_termCtx = termCtx;                 // stash for line_append calls
-    if (input && *input) g_inbound.push(input);
-    return orig_submit ? orig_submit(termCtx, input) : 0;
+// Print one line into the terminal scrollback. MAIN THREAD ONLY (call from the
+// submit/frame hooks, never from the shell worker -- off-thread engine calls
+// crash, see CLAUDE.md threading model).
+void termPrintLine(const char* s) {
+    if (!fn_line_append) return;
+    fn_line_append(s ? s : "", 1, 1, 0);
+    if (fn_line_commit) fn_line_commit();
 }
 
-// ---- frame_tick -------------------------------------------------------------
-using FrameTick_t = void(__cdecl*)();
-FrameTick_t orig_frame = nullptr;
+// ---- dispatch_submit hook ---------------------------------------------------
+// FUN_0055f800: void __cdecl(ctx). Fires when a command is submitted in the
+// terminal; runs on the main thread. The raw typed line lives at the global
+// input buffer (input_buffer_rva from the module base).
+using Dispatch_t = void(__cdecl*)(void* ctx);
+Dispatch_t   orig_dispatch = nullptr;
+uintptr_t    g_moduleBase  = 0;
 
-void __cdecl hook_frame() {
-    // Drain shell output ON THE MAIN THREAD and render via line_append.
-    if (orig_line_append && g_termCtx) {
-        while (auto line = g_outbound.tryPop()) {
-            orig_line_append(g_termCtx, line->c_str());
+const char* readInputBuffer() {
+    if (!g_moduleBase) return nullptr;
+    return reinterpret_cast<const char*>(g_moduleBase + sig::input_buffer_rva);
+}
+
+void __cdecl hook_dispatch(void* ctx) {
+    // ---- M0: prove output injection -------------------------------------
+    termPrintLine("hello from the void");
+
+    // ---- M1: capture the submitted command (logged for now) -------------
+    if (const char* input = readInputBuffer()) {
+        if (*input) {
+            g_inbound.push(input);
+            logf("[hooks] submit: \"%s\"\n", input);
         }
     }
-    if (orig_frame) orig_frame();
+
+    // ---- M3 (future): drain shell output here, on the main thread -------
+    // while (auto line = g_outbound.tryPop()) termPrintLine(line->c_str());
+
+    if (orig_dispatch) orig_dispatch(ctx);
 }
 
 template <typename T>
@@ -81,29 +110,33 @@ bool createHook(const char* name, const char* pattern, void* detour, T& orig) {
     return true;
 }
 
+uintptr_t resolve(const char* name, const char* pattern) {
+    uintptr_t addr = pattern ? sigscan::findInModule("BlackOps.exe", pattern) : 0;
+    logf("[hooks] resolve %s: %p\n", name, (void*)addr);
+    return addr;
+}
+
 }  // namespace
 
 namespace hooks {
 
 bool install() {
+    g_moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandleA("BlackOps.exe"));
+
     if (MH_Initialize() != MH_OK) {
         logf("[hooks] MH_Initialize failed\n");
         return false;
     }
 
-    // Resolve line_append first; it's required for M0 and used by frame_tick.
-    if (sig::line_append) {
-        uintptr_t addr = sigscan::findInModule("BlackOps.exe", sig::line_append);
-        orig_line_append = reinterpret_cast<LineAppend_t>(addr);
-        logf("[hooks] line_append @ %p\n", (void*)addr);
-    } else {
-        logf("[hooks] line_append: no signature yet (M0 blocked on RE)\n");
-    }
+    // Resolve the call targets we invoke (line_append is the M0 requirement).
+    fn_line_append = reinterpret_cast<LineAppend_t>(resolve("line_append", sig::line_append));
+    fn_line_commit = reinterpret_cast<LineCommit_t>(resolve("line_commit", sig::line_commit));
 
     bool any = false;
-    any |= createHook("submit_handler", sig::submit_handler, (void*)&hook_submit, orig_submit);
-    any |= createHook("frame_tick",     sig::frame_tick,     (void*)&hook_frame,  orig_frame);
-    return any && orig_line_append != nullptr;
+    any |= createHook("dispatch_submit", sig::submit_handler, (void*)&hook_dispatch, orig_dispatch);
+    // frame_tick hook deferred to M3 (sig::frame_tick still TBD).
+
+    return any && fn_line_append != nullptr;
 }
 
 void remove() {

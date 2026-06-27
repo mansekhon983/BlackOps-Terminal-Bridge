@@ -24,7 +24,46 @@ commands include `help`, `login`, `dir`, `cat`, `who`, `rlogin`, `mail`, `foobar
 `3arc`, `doa`, `zork`, `cod`, `arpanet`, `alicia`, `amber`. Good string anchors:
 HELP output text, Zork intro ("WEST OF HOUSE"), DOA unlock message, login prompts.
 
-- [ ] Export Defined Strings from the Ghidra project (headless).
-- [ ] Pick 2–3 unique terminal strings, follow XREFs.
-- [ ] Breakpoint in x32dbg; type known command; inspect regs/stack.
-- [ ] Walk stack UP → submit_handler; DOWN → line_append.
+- [x] Export Defined Strings from the Ghidra project (headless) → 116 hits in
+      `terminal_strings.txt`.
+- [x] Followed help-screen string XREFs → found the help printer.
+- [ ] Confirm in x32dbg (live): set BP at dispatch_submit (RVA 0x15F800), type a
+      command, verify `DAT_00bf8130` holds the typed line and ctx convention.
+
+## 2026-06-27 — Session 2: functions confirmed (static)
+
+Done entirely from the existing Ghidra DB (headless, `-noanalysis`). See
+`decomp.txt` / `sigs.txt` for raw output, `offsets.md` for the canonical table.
+
+**line_append = FUN_004ef440 (RVA 0xEF440) — THE renderer. The hard 20% is solved.**
+The HELP command printer (the unnamed function spanning ~0x551bf4..0x551d41) emits
+every help line with the identical idiom:
+```
+PUSH 0 ; PUSH 1 ; PUSH 1 ; PUSH <str> ; CALL 0x4ef440 ; CALL 0x433720
+```
+So `line_append` is `__cdecl(const char* text, int=1, int=1, int=0)` and
+`line_commit`=FUN_00433720 advances the line. line_append parses `^` colour codes,
+wraps at 80 cols, scrolls at 21 rows, draws glyphs via FUN_004165b0 — i.e. it IS
+the authentic terminal renderer, exactly what M0/M1/M3 need. No `this` pointer.
+
+**dispatch_submit = FUN_0055f800 (RVA 0x15F800).** Terminal command dispatcher,
+`__cdecl(ctx)`, main thread. Reads typed line from global `DAT_00bf8130`,
+tokenizes (FUN_00566b30), strcmp-scans the `{name,handler}` table at
+PTR_s_alarm_00b71540 (count DAT_00b71608, stride 8), else prints
+`"^3Error: Unknown Command - try \"help\""`. Login shells route via
+DAT_00bf4d58+idx*0x14. → our submit hook + the M0 anchor.
+
+**Decision:** M0 no longer needs a separate frame hook. Hooking dispatch_submit
+(main thread) and calling line_append directly from it both proves output
+injection (M0) and captures the command (M1) in one hook. frame_tick is only
+needed for M3 (async shell output without a keypress) and is still TBD.
+
+Signatures (ASLR-safe, abs operands wildcarded) wired into `src/hooks.cpp`.
+
+### Assumptions to verify live in x32dbg before trusting the build
+- [ ] dispatch_submit is truly `__cdecl(ctx)` (Ghidra showed no __fastcall tag).
+- [ ] line_append's 4th pushed dword (0) is ignored (decompile typed only 3 args).
+- [ ] Calling line_append is safe only while the terminal is active (it writes
+      DAT_00bf5f10 / DAT_00bf8120) — guaranteed inside dispatch_submit.
+- [ ] frame_tick: locate for M3 (candidate approach: find the terminal's own
+      per-frame draw that consumes DAT_00bf8120).

@@ -1,0 +1,155 @@
+# Entry-point signatures + decompiled contracts
+# imageBase: 00400000
+
+==== line_append @ 004ef440 (RVA 0xef440) ====
+bytes: 83 EC 08 8B 44 24 0C 55 56 33 F6 89 74 24 08 33 ED 8D 50 01 8A 08 40 84
+
+==== line_commit @ 00433720 (RVA 0x33720) ====
+bytes: 8B 0D 20 81 BF 00 B8 1F 85 EB 51 F7 E9 C1 FA 05 8B C2 C1 E8 1F 03 D0 6B
+
+==== dispatch_submit @ 0055f800 (RVA 0x15f800) ====
+bytes: 83 EC 08 A1 34 82 BF 00 8D 04 80 8B 04 85 58 4D BF 00 C7 04 24 30 81 BF
+
+==== get_input_token @ 00566b30 (RVA 0x166b30) ====
+bytes: E8 BB DD 03 00 84 C0 74 07 B9 10 E6 73 02 EB 32 E8 BB F3 08 00 84 C0 74
+
+==== cbuf_exec @ 0049b930 (RVA 0x9b930) ====
+bytes: 6A 35 E8 29 31 16 00 8B 4C 24 0C 83 C4 04 8B D1 85 C9 74 1F 8A 01 3C 70
+
+------ decompile 0x004ef440 ------
+
+void FUN_004ef440(char *param_1,char param_2,char param_3)
+
+{
+  char *pcVar1;
+  char cVar2;
+  char cVar3;
+  char *pcVar4;
+  int iVar5;
+  char cVar6;
+  int iVar7;
+  int iVar8;
+  int iVar9;
+  int iVar10;
+  int iStack_8;
+  char *pcStack_4;
+  
+  iVar8 = 0;
+  iStack_8 = 0;
+  iVar7 = 0;
+  pcStack_4 = param_1;
+  do {
+    cVar6 = *pcStack_4;
+    pcStack_4 = pcStack_4 + 1;
+  } while (cVar6 != '\0');
+  pcStack_4 = pcStack_4 + -(int)(param_1 + 1);
+  iVar10 = DAT_00bf8120;
+  cVar6 = param_2;
+  if (0 < (int)pcStack_4) {
+    do {
+      cVar2 = param_1[iVar8];
+      if (cVar2 == '^') {
+        cVar6 = param_1[iVar8 + 1] + -0x30;
+        iVar8 = iVar8 + 1;
+        cVar3 = cVar6;
+        param_3 = '\x01';
+      }
+      else {
+        cVar3 = param_2;
+        if (cVar2 == '\x01') {
+          iVar5 = iVar8 + 1;
+          iVar9 = iVar8 + 1;
+          if (param_1[iVar5] == '\0') {
+            pcVar4 = param_1 + iVar8 + 2;
+            pcVar1 = pcVar4 + 1;
+            do {
+              cVar2 = *pcVar4;
+              pcVar4 = pcVar4 + 1;
+            } while (cVar2 != '\0');
+            pcStack_4 = pcVar4 + (int)(pcStack_4 + (1 - (int)pcVar1));
+            iVar8 = iVar9;
+          }
+          else {
+            iVar8 = iVar9;
+            if (param_1[iVar5] == '\x01') {
+              cVar6 = '\x02';
+              cVar3 = '\x02';
+              param_3 = param_2;
+            }
+          }
+        }
+        else {
+          if (cVar2 == '\n') {
+            iStack_8 = iStack_8 + 1;
+            iVar7 = 0;
+          }
+          else {
+            iVar7 = iVar7 + 1;
+            if (0x50 < iVar7) {
+              iVar7 = 0;
+              iStack_8 = iStack_8 + 1;
+            }
+          }
+          FUN_004165b0(cVar2,cVar6,param_3);
+          iVar10 = DAT_00bf8120;
+        }
+      }
+      param_2 = cVar3;
+      if (0x15 < iStack_8) {
+        iVar5 = iVar10 % 100;
+        iVar7 = 0;
+        iVar10 = iVar10 + 1;
+        iStack_8 = 0;
+        (&DAT_00bf5f10)[iVar5 * 0x56] = 5;
+        DAT_00bf8120 = iVar10;
+      }
+      iVar8 = iVar8 + 1;
+    } while (iVar8 < (int)pcStack_4);
+  }
+  return;
+}
+
+
+
+------ decompile 0x00566b30 ------
+
+void FUN_00566b30(undefined4 *param_1)
+
+{
+  int iVar1;
+  char cVar2;
+  undefined *puVar3;
+  
+  cVar2 = FUN_005a48f0();
+  if (cVar2 == '\0') {
+    cVar2 = FUN_005f5f00();
+    if (cVar2 == '\0') {
+      cVar2 = FUN_0055b420();
+      if (cVar2 == '\0') {
+        cVar2 = FUN_005096f0();
+        puVar3 = (undefined *)(-(uint)(cVar2 != '\0') & 0x274b9b4);
+      }
+      else {
+        puVar3 = &DAT_02747328;
+      }
+    }
+    else {
+      puVar3 = &DAT_02742c9c;
+    }
+  }
+  else {
+    puVar3 = &DAT_0273e610;
+  }
+  iVar1 = *(int *)(puVar3 + 0x4280);
+  if (puVar3[iVar1 * 0x428 + 0x408] != '\0') {
+    puVar3[iVar1 * 0x428 + 0x408] = 0;
+    *param_1 = *(undefined4 *)(puVar3 + iVar1 * 0x428 + 0x420);
+    *(undefined4 *)(puVar3 + iVar1 * 0x428 + 0x404) =
+         *(undefined4 *)(puVar3 + iVar1 * 0x428 + 0x41c);
+  }
+  FUN_00865f20(param_1,1);
+  return;
+}
+
+
+

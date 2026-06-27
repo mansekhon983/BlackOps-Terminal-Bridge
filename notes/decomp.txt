@@ -1,0 +1,652 @@
+# Decompilation + disassembly of key terminal functions
+# imageBase: 00400000
+
+======================================================
+FUNCTION FUN_0055f800 @ 0055f800  (from probe 0055f800)
+------ decompiled ------
+
+void FUN_0055f800(undefined4 param_1)
+
+{
+  char cVar1;
+  char *pcVar2;
+  char *pcVar3;
+  int iVar4;
+  undefined4 uVar5;
+  int iVar6;
+  undefined1 *apuStack_8 [2];
+  
+  apuStack_8[0] = &DAT_00bf8130;
+  if (*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == (code *)0x0) {
+    pcVar2 = (char *)FUN_00566b30(apuStack_8);
+    pcVar3 = pcVar2;
+    do {
+      cVar1 = *pcVar3;
+      pcVar3 = pcVar3 + 1;
+    } while (cVar1 != '\0');
+    if (pcVar3 != pcVar2 + 1) {
+      iVar6 = 0;
+      if (0 < DAT_00b71608) {
+        do {
+          iVar4 = FUN_00552bf0(pcVar2,(&PTR_s_alarm_00b71540)[iVar6 * 2]);
+          if (iVar4 == 0) {
+            (*(code *)(&PTR_FUN_00b71544)[iVar6 * 2])(param_1,apuStack_8);
+            uVar5 = FUN_0057cdd0("cmd dec20 \"%s\"\n",&DAT_00bf8130);
+            FUN_0049b930(param_1,uVar5);
+            goto LAB_0055f88e;
+          }
+          iVar6 = iVar6 + 1;
+        } while (iVar6 < DAT_00b71608);
+      }
+      FUN_004ef440("^3Error^1:  Unknown Command - try \"help\"",1,1,0);
+      FUN_00433720();
+    }
+  }
+  else {
+    (**(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14))(param_1,apuStack_8);
+  }
+LAB_0055f88e:
+  if (*(int *)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == 0) {
+    FUN_004ef440(&DAT_00a07b90,1,1,0);
+  }
+  return;
+}
+
+
+
+======================================================
+FUNCTION FUN_005545e0 @ 005545e0  (from probe 005545e0)
+------ decompiled ------
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_005545e0(undefined4 param_1,undefined4 param_2)
+
+{
+  char cVar1;
+  char *_Source;
+  int iVar2;
+  undefined4 uStack_50;
+  char *pcStack_4c;
+  undefined4 uStack_44;
+  undefined4 uStack_40;
+  int iStack_28;
+  undefined4 uStack_24;
+  char *pcStack_20;
+  undefined4 uStack_14;
+  undefined4 uStack_4;
+  
+  _Source = (char *)FUN_00566b30(param_2);
+  if (*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == FUN_005545e0) {
+    if (DAT_00bf4488 == 1) {
+      FUN_004ef440("PASSWORD:",1,1,0);
+      _strncpy(&DAT_00bf4492,_Source,0x40);
+      DAT_00bf4488 = 2;
+      return;
+    }
+    if (DAT_00bf4488 == 2) {
+      uStack_24 = *(undefined4 *)(&DAT_00bf4d48 + DAT_00bf8234 * 0x14);
+      DAT_00bf80a8 = 0;
+      DAT_00bf80ac = 0;
+      DAT_00bf80b0 = 0;
+      DAT_00bf80b4 = 0;
+      _DAT_00bf80b8 = 0;
+      pcStack_20 = &DAT_00bf4492;
+      uStack_14 = 6;
+      cVar1 = FUN_0049c330(&iStack_28,&uStack_50);
+      if (cVar1 != '\0') {
+        iVar2 = FUN_00552bf0(uStack_44,_Source);
+        if (iVar2 == 0) {
+          iVar2 = DAT_00bf8234 * 0x14;
+          *(undefined4 *)(&DAT_00bf4d58 + iVar2) = 0;
+          *(undefined4 *)(&DAT_00bf4d4c + iVar2) = uStack_50;
+          *(undefined4 *)(&DAT_00bf4d50 + iVar2) = uStack_40;
+          return;
+        }
+      }
+      FUN_004ef440("Invalid Password",1,1,0);
+      FUN_00433720();
+      if (DAT_00bf4490 == '\0') {
+        DAT_00bf8234 = DAT_00bf8234 + -1;
+        return;
+      }
+      DAT_00bf4488 = 1;
+      FUN_004ef440("USER:",1,1,0);
+    }
+  }
+  else {
+    if ((_Source == (char *)0x0) || (*_Source == '\0')) {
+      FUN_004ef440("^3Error^1:  Invalid Input - expected machine name",1,1,0);
+      FUN_00433720();
+      return;
+    }
+    if (0xf < DAT_00bf8234 + 1) {
+      FUN_004ef440("^3Error^1:  Too many logins - Use exit to close open shells",1,1,0);
+      FUN_00433720();
+      return;
+    }
+    DAT_00bf80a8 = 0;
+    DAT_00bf80ac = 0;
+    DAT_00bf80b0 = 0;
+    DAT_00bf80b4 = 0;
+    _DAT_00bf80b8 = 0;
+    uStack_44 = 2;
+    pcStack_4c = _Source;
+    cVar1 = FUN_004e4720(&uStack_50,&iStack_28);
+    if ((cVar1 == '\0') || (iStack_28 == -1)) {
+      FUN_004ef440("^3Error^1:  unknown system",1,1,0);
+      FUN_00433720();
+      return;
+    }
+    DAT_00bf8234 = DAT_00bf8234 + 1;
+    iVar2 = DAT_00bf8234 * 0x14;
+    *(int *)(&DAT_00bf4d48 + iVar2) = iStack_28;
+    *(code **)(&DAT_00bf4d58 + iVar2) = FUN_005545e0;
+    DAT_00bf4488 = 1;
+    _DAT_00bf448c = (int)pcStack_20;
+    DAT_00bf4490 = '\0';
+    iStack_28 = (int)pcStack_20;
+    uStack_4 = 1;
+    FUN_00667c60();
+    cVar1 = FUN_005797b0(&iStack_28,&uStack_50);
+    if (cVar1 != '\0') {
+      FUN_006649b0(param_1,&uStack_50);
+    }
+    DAT_00bf4488 = 1;
+    FUN_004ef440("USER:",1,1,0);
+    if (DAT_00bf4491 != '\0') {
+      FUN_00667c60();
+      uStack_24 = *(undefined4 *)(&DAT_00bf4d48 + DAT_00bf8234 * 0x14);
+      pcStack_20 = "amason";
+      uStack_14 = 6;
+      cVar1 = FUN_0049c330(&iStack_28,&uStack_50);
+      if (cVar1 != '\0') {
+        FUN_004ef440("amason",1,1,0);
+        FUN_00433720();
+        FUN_004ef440("PASSWORD:",1,1,0);
+        FUN_004ef440("********",1,1,0);
+        FUN_00433720();
+        iVar2 = DAT_00bf8234 * 0x14;
+        *(undefined4 *)(&DAT_00bf4d58 + iVar2) = 0;
+        *(undefined4 *)(&DAT_00bf4d4c + iVar2) = uStack_50;
+        *(undefined4 *)(&DAT_00bf4d50 + iVar2) = uStack_40;
+      }
+      DAT_00bf4491 = 0;
+      FUN_00433720();
+      FUN_004ef440(&DAT_00a07b90,1,1,0);
+      return;
+    }
+  }
+  return;
+}
+
+
+
+======================================================
+FUNCTION FUN_005aa2a0 @ 005aa2a0  (from probe 005aa2a0)
+------ decompiled ------
+
+void __fastcall FUN_005aa2a0(undefined *param_1)
+
+{
+  char cVar1;
+  int iVar2;
+  undefined *puStack_4;
+  
+  puStack_4 = param_1;
+  if (DAT_00bf8338 != '\0') {
+    cVar1 = FUN_00528a20("terminal");
+    if (cVar1 != '\0') {
+      DAT_00bf8338 = '\0';
+      iVar2 = 0;
+      do {
+        FUN_006916a0(*(undefined4 *)((int)&PTR_s_terminal_resources_systems_csv_00b7152c + iVar2),
+                     (int)&DAT_00bf4e8c + iVar2);
+        iVar2 = iVar2 + 4;
+      } while (iVar2 < 0x14);
+      puStack_4 = &DAT_009e3b78;
+      DAT_00bf4490 = 1;
+      DAT_00bf4491 = 1;
+      FUN_005545e0(0,&puStack_4);
+    }
+  }
+  if (*(undefined1 **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == &LAB_00674490) {
+    cVar1 = FUN_0069af10();
+    if (cVar1 == '\0') {
+      FUN_00433720();
+      FUN_004ef440(&DAT_00a07b90,1,1,0);
+    }
+  }
+  return;
+}
+
+
+
+======================================================
+FUNCTION FUN_00420240 @ 00420240  (from probe 00420240)
+------ decompiled ------
+
+void FUN_00420240(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
+                 undefined4 param_5)
+
+{
+  byte bVar1;
+  char cVar2;
+  undefined4 uVar3;
+  int iVar4;
+  byte *pbVar5;
+  byte *pbVar6;
+  byte *pbVar7;
+  bool bVar8;
+  undefined1 auStack_440 [64];
+  undefined1 auStack_400 [1024];
+  
+  uVar3 = FUN_005bfd80(param_2);
+  iVar4 = FUN_00552bf0(param_3,"clearError");
+  if (iVar4 == 0) {
+    FUN_0058ba30();
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"loadMissionDifficultyOffset");
+  if (iVar4 == 0) {
+    FUN_0084db60();
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"LoadSaveGames");
+  if (iVar4 == 0) {
+    FUN_00437c00(0);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"Loadgame");
+  if (iVar4 == 0) {
+    FUN_0084dbf0(param_1);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"Savegame");
+  if (iVar4 == 0) {
+    FUN_0084dc40(param_1,param_2);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"forcesave");
+  if (iVar4 == 0) {
+    FUN_0084dd30();
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"DelSavegame");
+  if (iVar4 == 0) {
+    FUN_005e9020();
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"SavegameSort");
+  if (iVar4 == 0) {
+    FUN_0084dd80(param_4);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"updateClanInProfile");
+  if (iVar4 == 0) {
+    uVar3 = FUN_004f3c70(param_1);
+    FUN_00650610(uVar3);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"LoadMods");
+  if (iVar4 == 0) {
+    FUN_00623a00();
+    DAT_02580ba8 = 0;
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"playerstart");
+  if (iVar4 == 0) {
+    cVar2 = FUN_006da230();
+    if (cVar2 == '\0') {
+      cVar2 = FUN_006da240();
+      if (cVar2 == '\0') {
+        FUN_0040fc70();
+        return;
+      }
+    }
+    FUN_006da140();
+    FUN_006da020();
+    FUN_006da150(1);
+    FUN_006da140();
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"ClearMods");
+  if (iVar4 == 0) {
+    uVar3 = FUN_005ae810("fs_game",0);
+    FUN_0051d1c0(uVar3);
+    FUN_0049b930(0,"vid_restart_complete\n");
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,&DAT_00a2a0e8);
+  if (iVar4 == 0) {
+    uVar3 = FUN_004f3c70(param_1,&DAT_009a9c58);
+    FUN_00619d00(param_1,uVar3);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"checkCoopQuit");
+  if (iVar4 == 0) {
+    FUN_004f3c70(param_1);
+    uVar3 = FUN_004f3c70(param_1,"disconnect\n");
+    FUN_00480a00(param_1,uVar3);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"Controls");
+  if (iVar4 == 0) {
+    FUN_0062c2a0(1);
+    FUN_00401a10(param_1,0x10);
+    FUN_005704e0(param_1,uVar3);
+    FUN_0055b510(param_1,uVar3,"setup_menu2");
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"Leave");
+  if (iVar4 == 0) {
+    FUN_0049b930(param_1,"disconnect\n");
+    FUN_00401a10(param_1,0x10);
+    FUN_005704e0(param_1,uVar3);
+    FUN_0055b510(param_1,uVar3,&DAT_009f334c);
+    FUN_00503450(param_1,uVar3);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"closeingame");
+  if (iVar4 == 0) {
+    FUN_0054ef10(param_1,0xffffffef);
+    FUN_004b3bd0(param_1);
+    FUN_0062c2a0(0);
+    FUN_005704e0(param_1,uVar3);
+    return;
+  }
+  iVar4 = FUN_00552bf0(param_3,"update");
+  if (iVar4 == 0) {
+    iVar4 = FUN_005d4e40(param_4,auStack_400,0x400);
+    if (iVar4 != 0) {
+      FUN_00537380(auStack_400);
+      return;
+    }
+  }
+  else {
+    iVar4 = FUN_00552bf0(param_3,"startSingleplayer");
+    if (iVar4 == 0) {
+      FUN_0049b930(param_1,"startSingleplayer\n");
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"startMultiplayer");
+    if (iVar4 == 0) {
+      FUN_0049b930(param_1,"startMultiplayer\n");
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"getLanguage");
+    if (iVar4 == 0) {
+      uVar3 = FUN_00636670("loc_language");
+      FUN_00500100("ui_language",uVar3);
+      FUN_00642910();
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"verifyLanguage");
+    if (iVar4 == 0) {
+      FUN_00642910();
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"updateLanguage");
+    if (iVar4 == 0) {
+      uVar3 = FUN_00636670("ui_language");
+      FUN_00500100("loc_language",uVar3);
+      FUN_00642910();
+      FUN_0049b930(param_1,"vid_restart\n");
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"saveComplete");
+    if (iVar4 == 0) {
+      FUN_0084db10(param_1);
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"saveRevert");
+    if (iVar4 == 0) {
+      _memset(&DAT_025f6960,0,0x100);
+      DAT_025f6a60 = 0;
+      return;
+    }
+    iVar4 = FUN_00552bf0(param_3,"loadTestMapNames");
+    if (iVar4 != 0) {
+      iVar4 = FUN_00552bf0(param_3,"runTestMap");
+      if (iVar4 == 0) {
+        pbVar5 = (byte *)FUN_0057ff80("test_levels_selection");
+        pbVar7 = &DAT_009dd354;
+        pbVar6 = pbVar5;
+        do {
+          bVar1 = *pbVar6;
+          bVar8 = bVar1 < *pbVar7;
+          if (bVar1 != *pbVar7) {
+LAB_004207f8:
+            iVar4 = (1 - (uint)bVar8) - (uint)(bVar8 != 0);
+            goto LAB_004207fd;
+          }
+          if (bVar1 == 0) break;
+          bVar1 = pbVar6[1];
+          bVar8 = bVar1 < pbVar7[1];
+          if (bVar1 != pbVar7[1]) goto LAB_004207f8;
+          pbVar6 = pbVar6 + 2;
+          pbVar7 = pbVar7 + 2;
+        } while (bVar1 != 0);
+        iVar4 = 0;
+LAB_004207fd:
+        if (iVar4 != 0) {
+          uVar3 = FUN_0057cdd0("devmap %s\n",pbVar5);
+          FUN_0049b930(0,uVar3);
+          return;
+        }
+      }
+      else {
+        iVar4 = FUN_00552bf0(param_3,"StartServer");
+        if (iVar4 == 0) {
+          FUN_0084ddd0(param_1);
+          return;
+        }
+        iVar4 = FUN_00552bf0(param_3,"clearLobbyChat");
+        if (iVar4 == 0) {
+          FUN_0084de90();
+          return;
+        }
+        iVar4 = FUN_00552bf0(param_3,"clearError");
+        if (iVar4 == 0) {
+          FUN_0058ba30();
+          if (0 < DAT_02910164) {
+            FUN_0054ef10(param_1,0xffffffef);
+            return;
+          }
+        }
+        else {
+          iVar4 = FUN_00552bf0(param_3,"JoinServer");
+          if (iVar4 == 0) {
+            FUN_0084df40(param_1,param_2);
+            return;
+          }
+          iVar4 = FUN_00552bf0(param_3,"createFavorite");
+          if (iVar4 == 0) {
+            FUN_0084e0d0();
+            return;
+          }
+          iVar4 = FUN_00552bf0(param_3,"loadSaveGameMap");
+          if (iVar4 == 0) {
+            cVar2 = FUN_0063ae80("savegame.svg",auStack_440);
+            if (cVar2 != '\0') {
+              uVar3 = FUN_0057cdd0("map %s\n",auStack_440);
+              FUN_0049b930(0,uVar3);
+              return;
+            }
+          }
+          else {
+            iVar4 = FUN_00552bf0(param_3,"sendMenuNotify");
+            if (iVar4 == 0) {
+              if (*(char *)(DAT_02598ef4 + 0x18) != '\0') {
+                iVar4 = FUN_005d4e40(param_4,auStack_400,0x400);
+                if (iVar4 != 0) {
+                  uVar3 = FUN_0057cdd0("cmd mlvl %s\n",auStack_400);
+                  FUN_0049b930(param_1,uVar3);
+                  return;
+                }
+              }
+            }
+            else {
+              iVar4 = FUN_00552bf0(param_3,"detachFromTerminal");
+              if (iVar4 == 0) {
+                FUN_0042f3b0(param_1);
+                return;
+              }
+              FUN_0043bf30(0xd,"unknown UI script %s in block:\n%s\n",param_3,param_5);
+            }
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+
+
+
+======================================================
+NO FUNCTION containing 00551ced -> disassembly window
+  00551cd4  PUSH 0x1
+  00551cd6  PUSH 0x1
+  00551cd8  PUSH 0x9bafa0
+  00551cdd  CALL 0x004ef440    -> 004ef440
+  00551ce2  CALL 0x00433720    -> 00433720
+  00551ce7  PUSH 0x0
+  00551ce9  PUSH 0x1
+  00551ceb  PUSH 0x1
+  00551ced  PUSH 0x9a8f20
+  00551cf2  CALL 0x004ef440    -> 004ef440
+  00551cf7  ADD ESP,0x40
+  00551cfa  CALL 0x00433720    -> 00433720
+  00551cff  PUSH 0x0
+  00551d01  PUSH 0x1
+  00551d03  PUSH 0x1
+  00551d05  PUSH 0xa0b678
+  00551d0a  CALL 0x004ef440    -> 004ef440
+  00551d0f  CALL 0x00433720    -> 00433720
+  00551d14  PUSH 0x0
+  00551d16  PUSH 0x1
+  00551d18  PUSH 0x1
+  00551d1a  PUSH 0x9e01a0
+  00551d1f  CALL 0x004ef440    -> 004ef440
+  00551d24  CALL 0x00433720    -> 00433720
+  00551d29  PUSH 0x0
+  00551d2b  PUSH 0x1
+  00551d2d  PUSH 0x1
+  00551d2f  PUSH 0x9d9310
+  00551d34  CALL 0x004ef440    -> 004ef440
+  00551d39  ADD ESP,0x30
+  00551d3c  JMP 0x00433720    -> 00433720
+  00551d41  RET
+  00551d70  XOR EAX,EAX
+  00551d72  CMP dword ptr [0x00b862e4],EAX
+  00551d78  SETNZ AL
+  00551d7b  RET
+  00551d80  SUB ESP,0x524
+  00551d86  MOV EAX,dword ptr [ESP + 0x52c]
+  00551d8d  MOV ECX,EAX
+  00551d8f  SUB ECX,dword ptr [ESP + 0x540]
+  00551d96  PUSH EBP
+  00551d97  MOV EBP,dword ptr [ESP + 0x52c]
+  00551d9e  MOV dword ptr [ESP + 0x4],ECX
+  00551da2  JNZ 0x00551dc9    -> 00551dc9
+  00551da4  MOV EAX,dword ptr [ESP + 0x538]
+  00551dab  MOV ECX,dword ptr [ESP + 0x534]
+  00551db2  PUSH EAX
+  00551db3  PUSH ECX
+  00551db4  MOV ECX,EBP
+  00551db6  CALL 0x0051a140    -> 0051a140
+  00551dbb  MOV ECX,EBP
+  00551dbd  POP EBP
+  00551dbe  ADD ESP,0x524
+  00551dc4  JMP 0x005a8960    -> 005a8960
+  00551dc9  MOV EDX,dword ptr [ESP + 0x538]
+  00551dd0  PUSH EBX
+  00551dd1  PUSH ESI
+  00551dd2  PUSH EDI
+  00551dd3  PUSH EAX
+  00551dd4  MOV EAX,dword ptr [ESP + 0x544]
+
+======================================================
+WINDOW around 00551c00
+  00551bf4  JNZ 0x00551d41    -> 00551d41
+  00551bfa  PUSH 0x0
+  00551bfc  PUSH 0x1
+  00551bfe  PUSH 0x1
+  00551c00  PUSH 0xa134a8
+  00551c05  CALL 0x004ef440    -> 004ef440
+  00551c0a  CALL 0x00433720    -> 00433720
+  00551c0f  PUSH 0x0
+  00551c11  PUSH 0x1
+  00551c13  PUSH 0x1
+  00551c15  PUSH 0x9dd354
+  00551c1a  CALL 0x004ef440    -> 004ef440
+  00551c1f  CALL 0x00433720    -> 00433720
+  00551c24  PUSH 0x0
+  00551c26  PUSH 0x1
+  00551c28  PUSH 0x1
+  00551c2a  PUSH 0x9d7114
+  00551c2f  CALL 0x004ef440    -> 004ef440
+  00551c34  CALL 0x00433720    -> 00433720
+  00551c39  PUSH 0x0
+  00551c3b  PUSH 0x1
+  00551c3d  PUSH 0x1
+  00551c3f  PUSH 0x9d5d78
+  00551c44  CALL 0x004ef440    -> 004ef440
+  00551c49  ADD ESP,0x40
+  00551c4c  CALL 0x00433720    -> 00433720
+  00551c51  PUSH 0x0
+  00551c53  PUSH 0x1
+  00551c55  PUSH 0x1
+  00551c57  PUSH 0x9fc3b8
+  00551c5c  CALL 0x004ef440    -> 004ef440
+  00551c61  CALL 0x00433720    -> 00433720
+  00551c66  PUSH 0x0
+  00551c68  PUSH 0x1
+  00551c6a  PUSH 0x1
+  00551c6c  PUSH 0xa0a210
+  00551c71  CALL 0x004ef440    -> 004ef440
+  00551c76  CALL 0x00433720    -> 00433720
+  00551c7b  PUSH 0x0
+  00551c7d  PUSH 0x1
+  00551c7f  PUSH 0x1
+  00551c81  PUSH 0xa24898
+  00551c86  CALL 0x004ef440    -> 004ef440
+  00551c8b  CALL 0x00433720    -> 00433720
+  00551c90  PUSH 0x0
+  00551c92  PUSH 0x1
+  00551c94  PUSH 0x1
+  00551c96  PUSH 0xa3d598
+  00551c9b  CALL 0x004ef440    -> 004ef440
+  00551ca0  ADD ESP,0x40
+  00551ca3  CALL 0x00433720    -> 00433720
+  00551ca8  PUSH 0x0
+  00551caa  PUSH 0x1
+  00551cac  PUSH 0x1
+  00551cae  PUSH 0xa0c0e8
+  00551cb3  CALL 0x004ef440    -> 004ef440
+  00551cb8  CALL 0x00433720    -> 00433720
+  00551cbd  PUSH 0x0
+  00551cbf  PUSH 0x1
+  00551cc1  PUSH 0x1
+  00551cc3  PUSH 0xa3172c
+  00551cc8  CALL 0x004ef440    -> 004ef440
+  00551ccd  CALL 0x00433720    -> 00433720
+  00551cd2  PUSH 0x0
+  00551cd4  PUSH 0x1
+  00551cd6  PUSH 0x1
+  00551cd8  PUSH 0x9bafa0
+  00551cdd  CALL 0x004ef440    -> 004ef440
+  00551ce2  CALL 0x00433720    -> 00433720
+  00551ce7  PUSH 0x0
+  00551ce9  PUSH 0x1
+  00551ceb  PUSH 0x1
+  00551ced  PUSH 0x9a8f20
+  00551cf2  CALL 0x004ef440    -> 004ef440
+  00551cf7  ADD ESP,0x40
+  00551cfa  CALL 0x00433720    -> 00433720
+  00551cff  PUSH 0x0
+  00551d01  PUSH 0x1
+  00551d03  PUSH 0x1
+  00551d05  PUSH 0xa0b678
+

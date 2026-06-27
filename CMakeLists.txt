@@ -17,6 +17,13 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Static CRT, applied to ALL targets (incl. the MinHook subproject). CMP0091 NEW
+# is forced as a policy default so MinHook -- whose cmake_minimum_required is too
+# old to enable it -- still honors CMAKE_MSVC_RUNTIME_LIBRARY. Without this the
+# DLL (/MT) and minhook (/MD) collide at link (__except_handler4_common).
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 # --- MinHook (inline hooking) ------------------------------------------------
 include(FetchContent)
 FetchContent_Declare(
@@ -37,10 +44,6 @@ add_library(bo1bridge SHARED
 
 target_include_directories(bo1bridge PRIVATE src)
 target_link_libraries(bo1bridge PRIVATE minhook)
-
-# Static CRT so the DLL has no runtime DLL dependencies inside the game process.
-set_property(TARGET bo1bridge PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 target_compile_definitions(bo1bridge PRIVATE
   WIN32_LEAN_AND_MEAN
