@@ -78,8 +78,12 @@ uintptr_t    g_moduleBase     = 0;
 
 // State (main thread only). g_shellMode: are we in the real-shell terminal?
 // g_inDispatch: set around orig_dispatch so the game's own output is swallowed.
+// g_paused/g_pageLines: the --MORE-- pager (one screenful at a time).
 bool g_shellMode  = false;
 bool g_inDispatch = false;
+bool g_paused     = false;
+int  g_pageLines  = 0;
+const int kPageSize = 20;   // visible rows before a --MORE-- break
 
 void __cdecl hook_line_append(const char* text, int color, int flag, int zero) {
     if (g_inDispatch) return;   // swallow the game's built-in output
@@ -102,15 +106,24 @@ int32_t readGlobalInt(uintptr_t rva) {
 // the write head never races too far ahead of the reveal head (which would
 // overrun the 100-row ring). Called from the per-frame renderer hook.
 void pumpOutput() {
-    const int kMaxBacklog   = 24;   // keep written-minus-revealed under this
-    const int kLinesPerFrame = 3;   // cap work per frame
+    if (g_paused) return;            // waiting for the user to continue past --MORE--
+    const int kMaxBacklog   = 24;    // keep written-minus-revealed under this
+    const int kLinesPerFrame = 3;    // cap work per frame
     for (int i = 0; i < kLinesPerFrame; ++i) {
         int written  = readGlobalInt(sig::lines_written_rva);
         int revealed = readGlobalInt(sig::lines_shown_rva);
         if (written - revealed >= kMaxBacklog) break;   // let the reveal catch up
+
+        // One screenful done and more is waiting -> page break.
+        if (g_pageLines >= kPageSize && !g_outbound.empty()) {
+            termPrintLine("^3--MORE--^7  (press ENTER)");
+            g_paused = true;
+            return;
+        }
         auto line = g_outbound.tryPop();
         if (!line) break;
         termPrintLine(line->c_str());
+        ++g_pageLines;
     }
 }
 
@@ -156,6 +169,14 @@ void runDispatchSilently(void* ctx) {
 }
 
 void __cdecl hook_dispatch(void* ctx) {
+    // If we're paused at a --MORE-- break, this Enter just continues paging --
+    // consume it (don't treat it as a command).
+    if (g_paused) {
+        g_paused = false;
+        g_pageLines = 0;
+        return;
+    }
+
     std::string input = readInput();
     const bool toggle = iequals(input, kToggleWord);
 
@@ -184,8 +205,10 @@ void __cdecl hook_dispatch(void* ctx) {
         return;
     }
     // Suppress the game's built-in handling; queue the command for the worker
-    // thread (async -- the per-frame pump renders the output).
+    // thread (async -- the per-frame pump renders the output). Reset the pager
+    // so this command's output starts a fresh screenful.
     runDispatchSilently(ctx);
+    g_pageLines = 0;
     logf("[hooks] shell: \"%s\"\n", input.c_str());
     g_inbound.push(input);
 }

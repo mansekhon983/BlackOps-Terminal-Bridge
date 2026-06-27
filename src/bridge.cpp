@@ -124,12 +124,18 @@ bool startSession() {
 
     g_inW = inW; g_outR = outR; g_proc = pi.hProcess; g_thr = pi.hThread;
 
-    // Session init: sentinel prompt (stripped from output), plain ASCII output,
-    // quiet progress, then a marker so we can drain all startup output.
+    // Session init:
+    //  - Replace stdout with an AUTO-FLUSHING ASCII writer. This is the key fix
+    //    for the one-command-behind lag: powershell.exe block-buffers stdout when
+    //    it's a pipe, so a command's output (and our end marker) wouldn't flush
+    //    until the NEXT command pushed the buffer out. AutoFlush forces each write
+    //    through immediately.
+    //  - Sentinel prompt (stripped from output), quiet progress.
+    writeLine("$so=New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(),"
+              "[System.Text.Encoding]::ASCII); $so.AutoFlush=$true; [Console]::SetOut($so)");
     writeLine("function prompt { '###BO1P###' }");
     writeLine("$ProgressPreference='SilentlyContinue'");
     writeLine("$ErrorActionPreference='Continue'");
-    writeLine("[Console]::OutputEncoding=[System.Text.Encoding]::ASCII");
     writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'");
     readUntilMarker(10000);   // swallow banner + init echoes
     return true;
@@ -140,9 +146,9 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
         return { "[bridge] shell session is not running" };
     }
     writeLine(command.c_str());
-    // Bare-string marker prints itself; runs even if `command` errored, because
-    // it's a separate REPL line.
-    writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'");
+    // Bare-string marker prints itself (runs even if `command` errored, since
+    // it's a separate REPL line), then force a flush.
+    writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'; [Console]::Out.Flush()");
     return splitLines(readUntilMarker(timeoutMs));
 }
 
