@@ -1,0 +1,19 @@
+# Build output
+/build/
+*.dll
+*.exp
+*.lib
+*.pdb
+*.obj
+
+# Ghidra project artifacts (large DB; keep out of git)
+*.gpr
+*.lock
+*.lock~
+Black_Ops.rep/
+
+# Editor / OS
+.vs/
+.idea/
+*.user
+Thumbs.db
