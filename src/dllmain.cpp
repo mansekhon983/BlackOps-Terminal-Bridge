@@ -5,15 +5,18 @@
 // BlackOps.exe is 32-bit -> this DLL must be built x86 (see CMakeLists.txt).
 
 #include <windows.h>
+#include <thread>
 
 #include "hooks.h"
 #include "bridge.h"
 
 static DWORD WINAPI OnAttach(LPVOID) {
     // Start (and drain startup of) the persistent powershell session off the
-    // loader lock. Hooks are installed only after, so the dispatch hook never
-    // fires before the shell is ready.
+    // loader lock, then launch the worker thread, then install hooks. Order
+    // matters: the shell is ready and the worker is running before the dispatch
+    // hook can queue anything.
     bridge::startSession();
+    std::thread(bridge::workerLoop).detach();
     hooks::install();
     return 0;
 }

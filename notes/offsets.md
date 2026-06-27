@@ -72,10 +72,23 @@
 | Input buffer | `DAT_00bf8130` | global: the raw typed command line |
 | Line counter | `DAT_00bf8120` | global: current scrollback line index |
 
-### Still TBD
-| Symbol | Status | Notes |
+### `frame_render` = `FUN_00575be0`  (RVA `0x00175BE0`)  ★ per-frame pump (FOUND)
+- **Convention:** `__cdecl`, 6 dword-sized args (forwarded verbatim through the hook).
+- **What it does:** the terminal's per-frame renderer. Reveals queued rows over
+  time (typewriter) by walking `DAT_00bf8124` (reveal head) toward `DAT_00bf8120`
+  (write head); **case 5 = the `--MORE--` pager**. Resolved by RVA + prologue
+  verify (ASLR off).
+- **Verify bytes:** `A1 24 81 BF 00 83 EC 28 53 55 56 57 3B 05 20 81 BF 00`
+- Hooked to drip shell output a few lines/frame, throttled by `write-reveal < 24`
+  so the 100-row ring never overruns.
+
+### Terminal render model (confirmed)
+| Global | RVA | Meaning |
 |---|---|---|
-| `frame_tick` | not yet located | per-frame pump needed for **M3** (async shell output without typing). NOT needed for M0/M1 — those call `line_append` directly from the main-thread submit hook. |
+| `DAT_00bf8120` | `0x7F8120` | lines **written** (write head; `%100` ring of `0x56`-byte rows) |
+| `DAT_00bf8124` | `0x7F8124` | lines **revealed** (reveal head; animated toward write head) |
+| `DAT_00bf5f10` | `0x7F5F10` | row state buffer; `[row*0x56]`: 1=text, 5=`--MORE--` pager |
+| `FUN_004165b0` | — | per-character cell writer (one glyph onto the current row) |
 
 ## Terminal strings used as XREF entry points
 

@@ -26,7 +26,12 @@ bool sessionAlive();
 
 // Send `command` to the shell, read until the end marker, and return the output
 // split into lines (CR/LF stripped). Blocks up to timeoutMs. Never throws.
+// Runs on the WORKER thread (never the engine thread).
 std::vector<std::string> exec(const std::string& command, unsigned timeoutMs = 15000);
+
+// Worker-thread loop: drains queued commands (g_inbound), runs each via exec,
+// pushes the resulting lines onto g_outbound for the per-frame pump to render.
+void workerLoop();
 
 // Terminate the shell and close handles. Called on DLL detach.
 void stopSession();

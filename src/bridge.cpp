@@ -1,4 +1,5 @@
 #include "bridge.h"
+#include "queues.h"
 
 #include <windows.h>
 
@@ -12,6 +13,11 @@ HANDLE g_thr  = nullptr;
 // Marker that delimits one command's output. Must be something normal output
 // won't contain. We print it as a bare string from PowerShell.
 const char* const kMarker = "###BO1_BRIDGE_END_7F3A###";
+
+// The interactive host writes a prompt before each read. We can't reliably make
+// it empty (PowerShell falls back to "PS> " for an empty prompt), so we make the
+// prompt a known sentinel and strip it from output instead.
+const char* const kPrompt = "###BO1P###";
 
 void writeLine(const char* s) {
     if (!g_inW) return;
@@ -48,6 +54,7 @@ std::string readUntilMarker(unsigned timeoutMs) {
 }
 
 std::vector<std::string> splitLines(const std::string& text) {
+    const size_t plen = lstrlenA(kPrompt);
     std::vector<std::string> lines;
     size_t start = 0;
     while (start <= text.size()) {
@@ -55,6 +62,9 @@ std::vector<std::string> splitLines(const std::string& text) {
         size_t end = (nl == std::string::npos) ? text.size() : nl;
         std::string line = text.substr(start, end - start);
         if (!line.empty() && line.back() == '\r') line.pop_back();
+        // Strip any leading prompt sentinels (the host emits one per read; it can
+        // be prefixed onto a real output line since it has no trailing newline).
+        while (line.compare(0, plen, kPrompt) == 0) line.erase(0, plen);
         lines.push_back(line);
         if (nl == std::string::npos) break;
         start = nl + 1;
@@ -114,9 +124,9 @@ bool startSession() {
 
     g_inW = inW; g_outR = outR; g_proc = pi.hProcess; g_thr = pi.hThread;
 
-    // Session init: empty prompt (no `PS C:\>` noise), plain ASCII output, quiet
-    // progress, then a marker so we can drain all startup output.
-    writeLine("function prompt { '' }");
+    // Session init: sentinel prompt (stripped from output), plain ASCII output,
+    // quiet progress, then a marker so we can drain all startup output.
+    writeLine("function prompt { '###BO1P###' }");
     writeLine("$ProgressPreference='SilentlyContinue'");
     writeLine("$ErrorActionPreference='Continue'");
     writeLine("[Console]::OutputEncoding=[System.Text.Encoding]::ASCII");
@@ -134,6 +144,16 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
     // it's a separate REPL line.
     writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'");
     return splitLines(readUntilMarker(timeoutMs));
+}
+
+void workerLoop() {
+    for (;;) {
+        auto cmd = g_inbound.tryPop();
+        if (!cmd) { Sleep(16); continue; }
+        std::vector<std::string> lines = exec(*cmd);
+        for (auto& line : lines) g_outbound.push(std::move(line));
+        g_outbound.push("");   // blank separator after each command's output
+    }
 }
 
 void stopSession() {

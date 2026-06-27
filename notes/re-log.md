@@ -106,6 +106,36 @@ DLL, type a command → expect `hello from the void` + a verified line_commit lo
   command (i.e., is suppressed orig_dispatch enough bookkeeping)? Does `cd` then
   `dir` show the new directory (persistence)? Watch DebugView `[hooks] shell:`.
 
+## 2026-06-27 — Session 5: glitches root-caused; async + pump + toggle
+
+User tested synchronous M3: worked but glitchy — output one command behind,
+typewriter letter-by-letter, screen blanked at a limit then resumed on Enter.
+
+Root-caused via Ghidra (FindTermRender.java -> render.txt):
+- **FUN_00575be0** is the per-frame terminal renderer. Reveals rows over time
+  (DAT_00bf8124 reveal head chasing DAT_00bf8120 write head) = the typewriter.
+  **Case 5 = a real `--MORE--` pager** that waits for a keypress = the
+  "blank then resume on Enter". Rows live in a **100-row ring** (`%100 * 0x56`).
+- The synchronous dump froze the engine thread (renderer couldn't run) and
+  flooded the ring -> all the glitches.
+
+Fix (the architecture CLAUDE.md originally prescribed):
+- **Async:** shell runs on a worker thread (`bridge::workerLoop`), draining
+  g_inbound -> exec -> g_outbound. Engine thread never blocks; a hung/interactive
+  command just times out after 15s with no freeze.
+- **Per-frame pump:** hooked FUN_00575be0 (RVA 0x175BE0, __cdecl/6 args, fwd
+  verbatim). Each frame drips <=3 lines from g_outbound, gated by
+  `write-reveal < 24`, so the ring never overruns and output streams in at the
+  reveal rate (looks like a live terminal).
+- **Prompt leak fix:** REPL prompt set to sentinel `###BO1P###` and stripped from
+  output (empty prompt falls back to "PS> " in PowerShell, hence the leak).
+- **Toggle mode (user request):** start in the normal BO1 terminal; typing
+  `connect` enters host-shell mode; typing `connect` again returns. Only in shell
+  mode are commands routed; game behaves 100% normally otherwise.
+
+Next live test: `connect` -> `whoami`/`dir`/`cd ..`/`type file` -> `connect` to
+exit. Watch: smooth streaming (no freeze/pager), cd persistence, prompt clean.
+
 ### Assumptions to verify live in x32dbg before trusting the build
 - [ ] dispatch_submit is truly `__cdecl(ctx)` (Ghidra showed no __fastcall tag).
 - [ ] line_append's 4th pushed dword (0) is ignored (decompile typed only 3 args).
