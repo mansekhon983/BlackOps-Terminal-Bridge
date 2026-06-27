@@ -50,3 +50,10 @@ target_compile_definitions(bo1bridge PRIVATE
   NOMINMAX
   _CRT_SECURE_NO_WARNINGS
 )
+
+# --- Minimal injector (CreateRemoteThread + LoadLibrary) ---------------------
+# Built x86 alongside the DLL so its kernel32/LoadLibraryA address is valid in
+# the 32-bit game process.
+add_executable(inject tools/inject.cpp)
+target_compile_definitions(inject PRIVATE
+  WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
