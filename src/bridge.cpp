@@ -65,6 +65,10 @@ std::vector<std::string> splitLines(const std::string& text) {
         // Strip any leading prompt sentinels (the host emits one per read; it can
         // be prefixed onto a real output line since it has no trailing newline).
         while (line.compare(0, plen, kPrompt) == 0) line.erase(0, plen);
+        // Trim trailing padding spaces so wrapping/line-counting is accurate.
+        size_t te = line.find_last_not_of(" \t");
+        if (te == std::string::npos) line.clear();
+        else line.erase(te + 1);
         lines.push_back(line);
         if (nl == std::string::npos) break;
         start = nl + 1;
@@ -105,9 +109,13 @@ bool startSession() {
     si.hStdOutput = outW;
     si.hStdError  = outW;
 
-    // Interactive host reading commands line-by-line from the redirected stdin
-    // (NOT `-Command -`, which waits for EOF and runs everything at once).
-    char cmdline[] = "powershell.exe -NoProfile -NoLogo";
+    // cmd.exe as the persistent shell: it executes each piped line immediately
+    // and writes output to the pipe UNBUFFERED -- unlike powershell.exe, which
+    // block-buffers its stdout to a pipe (causing the one-command-behind lag) and
+    // pads every output line with trailing spaces to the console width. `cd` and
+    // environment changes persist for the session. For PowerShell semantics, run
+    // `powershell -c "..."` as a command.
+    char cmdline[] = "cmd.exe";
 
     PROCESS_INFORMATION pi{};
     BOOL ok = CreateProcessA(nullptr, cmdline, nullptr, nullptr,
@@ -124,20 +132,12 @@ bool startSession() {
 
     g_inW = inW; g_outR = outR; g_proc = pi.hProcess; g_thr = pi.hThread;
 
-    // Session init:
-    //  - Replace stdout with an AUTO-FLUSHING ASCII writer. This is the key fix
-    //    for the one-command-behind lag: powershell.exe block-buffers stdout when
-    //    it's a pipe, so a command's output (and our end marker) wouldn't flush
-    //    until the NEXT command pushed the buffer out. AutoFlush forces each write
-    //    through immediately.
-    //  - Sentinel prompt (stripped from output), quiet progress.
-    writeLine("$so=New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(),"
-              "[System.Text.Encoding]::ASCII); $so.AutoFlush=$true; [Console]::SetOut($so)");
-    writeLine("function prompt { '###BO1P###' }");
-    writeLine("$ProgressPreference='SilentlyContinue'");
-    writeLine("$ErrorActionPreference='Continue'");
-    writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'");
-    readUntilMarker(10000);   // swallow banner + init echoes
+    // Session init: silence command echo, set the prompt to a sentinel we strip
+    // from output, then a marker so we can drain all the startup noise.
+    writeLine("@echo off");
+    writeLine("prompt ###BO1P###");
+    writeLine("echo ###BO1_BRIDGE_END_7F3A###");
+    readUntilMarker(10000);
     return true;
 }
 
@@ -146,9 +146,8 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
         return { "[bridge] shell session is not running" };
     }
     writeLine(command.c_str());
-    // Bare-string marker prints itself (runs even if `command` errored, since
-    // it's a separate REPL line), then force a flush.
-    writeLine("'" "###BO1_BRIDGE_END_7F3A###" "'; [Console]::Out.Flush()");
+    // Marker on its own line, so it runs even if `command` failed.
+    writeLine("echo ###BO1_BRIDGE_END_7F3A###");
     return splitLines(readUntilMarker(timeoutMs));
 }
 

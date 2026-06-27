@@ -116,14 +116,16 @@ void pumpOutput() {
 
         // One screenful done and more is waiting -> page break.
         if (g_pageLines >= kPageSize && !g_outbound.empty()) {
-            termPrintLine("^3--MORE--^7  (press ENTER)");
+            termPrintLine("--MORE--");
             g_paused = true;
             return;
         }
         auto line = g_outbound.tryPop();
         if (!line) break;
         termPrintLine(line->c_str());
-        ++g_pageLines;
+        // Count the on-screen rows this line occupies: it wraps every 80 cols.
+        int len = static_cast<int>(line->size());
+        g_pageLines += (len <= 0) ? 1 : (len + 79) / 80;
     }
 }
 
