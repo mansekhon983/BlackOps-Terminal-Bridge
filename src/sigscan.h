@@ -14,4 +14,8 @@ uintptr_t find(const char* idaPattern);
 // Scan a specific module by name (e.g. "BlackOps.exe"). 0 if not found.
 uintptr_t findInModule(const char* moduleName, const char* idaPattern);
 
+// Verify the bytes at `addr` match `idaPattern`. Used to validate an address
+// resolved by RVA (when a function has no unique signature) before trusting it.
+bool matches(uintptr_t addr, const char* idaPattern);
+
 }  // namespace sigscan

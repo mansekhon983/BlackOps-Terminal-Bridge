@@ -19,9 +19,13 @@ namespace sig {
         "83 EC 08 8B 44 24 0C 55 56 33 F6 89 74 24 08 33 ED 8D 50 01 8A 08 40 84";
 
     // line_commit = FUN_00433720 (RVA 0x33720). __cdecl(void). Called after each
-    // line_append. Wildcard the [0xBF8120] operand.
-    constexpr const char* line_commit =
-        "8B 0D ?? ?? ?? ?? B8 1F 85 EB 51 F7 E9 C1 FA 05 8B C2 C1 E8 1F 03 D0 6B";
+    // line_append. Its whole body is the generic (x%100)*0x56 idiom on the global
+    // line counter, which recurs ~10x in the image -> NO unique signature. Since
+    // ASLR is OFF (BlackOps.exe lacks DYNAMIC_BASE; always loads at 0x400000) we
+    // resolve it by RVA and verify these prologue bytes before trusting it.
+    constexpr uintptr_t  line_commit_rva = 0x00033720;
+    constexpr const char* line_commit_verify =
+        "8B 0D 20 81 BF 00 B8 1F 85 EB 51 F7 E9 C1 FA 05 8B C2 C1 E8 1F 03 D0 6B";
 
     // dispatch_submit = FUN_0055f800 (RVA 0x15F800). __cdecl(ctx). Terminal
     // command dispatcher; runs on the main thread. Our submit hook + M0 anchor.
@@ -130,7 +134,16 @@ bool install() {
 
     // Resolve the call targets we invoke (line_append is the M0 requirement).
     fn_line_append = reinterpret_cast<LineAppend_t>(resolve("line_append", sig::line_append));
-    fn_line_commit = reinterpret_cast<LineCommit_t>(resolve("line_commit", sig::line_commit));
+
+    // line_commit has no unique signature -> RVA + prologue verification.
+    uintptr_t commit = g_moduleBase + sig::line_commit_rva;
+    if (sigscan::matches(commit, sig::line_commit_verify)) {
+        fn_line_commit = reinterpret_cast<LineCommit_t>(commit);
+        logf("[hooks] line_commit verified @ %p\n", (void*)commit);
+    } else {
+        fn_line_commit = nullptr;
+        logf("[hooks] line_commit prologue MISMATCH @ %p -- commit skipped\n", (void*)commit);
+    }
 
     bool any = false;
     any |= createHook("dispatch_submit", sig::submit_handler, (void*)&hook_dispatch, orig_dispatch);

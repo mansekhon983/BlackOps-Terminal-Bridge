@@ -60,6 +60,28 @@ needed for M3 (async shell output without a keypress) and is still TBD.
 
 Signatures (ASLR-safe, abs operands wildcarded) wired into `src/hooks.cpp`.
 
+## 2026-06-27 — Session 3: first live test froze; root-caused
+
+First injection: typed `help` in-game → **game froze** (hang, not crash). Diagnosed
+statically (CheckDispatch.java), no live debugging needed:
+
+- **Ruled out convention:** the engine calls dispatch_submit as
+  `PUSH EAX; CALL 0x55f800; ADD ESP,4` — confirmed `__cdecl(ctx)`, as coded.
+- **Root cause:** the `line_commit` signature was **not unique** — it matched **10**
+  locations; `sigscan` returns the first (`0x00427aeb`), so we were calling into the
+  middle of an unrelated function as a `void(void)` → stack/register chaos → freeze.
+  The pattern is the compiler's generic `(x % 100) * 0x56` idiom on the global line
+  counter `DAT_00bf8120`, which recurs across the terminal code. No byte signature
+  can disambiguate it.
+- **Fix:** `BlackOps.exe` has **no ASLR** (`DllCharacteristics=0x8000`, DYNAMIC_BASE
+  clear) → always loads at `0x400000`. So `line_commit` is resolved by **RVA
+  (0x33720) + prologue verification** (`sigscan::matches`, which VirtualQuery-guards
+  the read so a wrong RVA can never crash). line_append + dispatch keep their unique
+  signatures. Rebuilt OK.
+
+Next live test: force-close the frozen game, relaunch offline, re-inject the rebuilt
+DLL, type a command → expect `hello from the void` + a verified line_commit log line.
+
 ### Assumptions to verify live in x32dbg before trusting the build
 - [ ] dispatch_submit is truly `__cdecl(ctx)` (Ghidra showed no __fastcall tag).
 - [ ] line_append's 4th pushed dword (0) is ignored (decompile typed only 3 args).

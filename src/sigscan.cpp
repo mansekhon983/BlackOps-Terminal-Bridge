@@ -69,4 +69,27 @@ uintptr_t find(const char* idaPattern) {
     return findInModule(nullptr, idaPattern);
 }
 
+bool matches(uintptr_t addr, const char* idaPattern) {
+    if (!addr) return false;
+    Pattern p = parse(idaPattern);
+    if (p.bytes.empty()) return false;
+
+    // Validate the bytes live in committed, readable memory before touching them
+    // (so a wrong RVA can never crash the game -- we just report "no match").
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(reinterpret_cast<void*>(addr), &mbi, sizeof(mbi))) return false;
+    if (mbi.State != MEM_COMMIT) return false;
+    const DWORD readable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY |
+                           PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+    if ((mbi.Protect & readable) == 0) return false;
+    uintptr_t regionEnd = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+    if (addr + p.bytes.size() > regionEnd) return false;  // would cross region edge
+
+    auto* data = reinterpret_cast<const uint8_t*>(addr);
+    for (size_t j = 0; j < p.bytes.size(); ++j) {
+        if (p.mask[j] && data[j] != p.bytes[j]) return false;
+    }
+    return true;
+}
+
 }  // namespace sigscan

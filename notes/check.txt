@@ -1,0 +1,26 @@
+# Callers of dispatch_submit (FUN_0055f800)
+# Look for: are args PUSHed before CALL (cdecl/stdcall) or
+# set in ECX/EDX (fastcall/thiscall) ? How is the stack
+# cleaned after the CALL (ADD ESP,x = cdecl; none = stdcall)?
+
+CALL site 0047eea5 in FUN_0047eb90
+    0047ee8e  CALL 0x004165b0
+    0047ee93  ADD ESP,0xc
+    0047ee96  POP EDI
+    0047ee97  POP ESI
+    0047ee98  POP EBP
+    0047ee99  POP EBX
+    0047ee9a  RET
+    0047ee9b  CALL 0x00433720
+    0047eea0  MOV EAX,dword ptr [ESP + 0x14]
+    0047eea4  PUSH EAX
+  > 0047eea5  CALL 0x0055f800
+    0047eeaa  MOV ESI,dword ptr [0x00bf4480]
+    0047eeb0  MOV ECX,ESI
+    0047eeb2  ADD ESP,0x4
+
+# Signature match counts (expect exactly 1 each)
+line_append: 1 match(es)  004ef440
+line_commit_wild: 10 match(es)  00427aeb  00427d4f  00433720  004fcea1  0052c1dd  00547970  00584bf3  006744aa  006814f0  0068410b
+line_commit_literal: 10 match(es)  00427aeb  00427d4f  00433720  004fcea1  0052c1dd  00547970  00584bf3  006744aa  006814f0  0068410b
+dispatch_submit: 1 match(es)  0055f800
