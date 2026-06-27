@@ -1,19 +1,19 @@
-// Injection entry point. On attach: start the shell worker thread and install
-// engine hooks. The heavy lifting happens in hooks.cpp / bridge.cpp.
+// Injection entry point. On attach: start the persistent shell session, then
+// install the engine hooks. The shell is started first (and fully warmed up)
+// so the dispatch hook can use it immediately without a startup race.
 //
 // BlackOps.exe is 32-bit -> this DLL must be built x86 (see CMakeLists.txt).
 
 #include <windows.h>
-#include <thread>
 
 #include "hooks.h"
 #include "bridge.h"
 
 static DWORD WINAPI OnAttach(LPVOID) {
-    // Shell worker runs for the life of the process; engine functions are never
-    // called from here -- only the per-frame hook touches the engine.
-    std::thread(bridge::workerLoop).detach();
-
+    // Start (and drain startup of) the persistent powershell session off the
+    // loader lock. Hooks are installed only after, so the dispatch hook never
+    // fires before the shell is ready.
+    bridge::startSession();
     hooks::install();
     return 0;
 }
@@ -22,11 +22,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     switch (reason) {
     case DLL_PROCESS_ATTACH:
         DisableThreadLibraryCalls(hModule);
-        // Do real work off the loader lock.
         CreateThread(nullptr, 0, OnAttach, nullptr, 0, nullptr);
         break;
     case DLL_PROCESS_DETACH:
         hooks::remove();
+        bridge::stopSession();
         break;
     }
     return TRUE;

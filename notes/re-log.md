@@ -82,6 +82,30 @@ statically (CheckDispatch.java), no live debugging needed:
 Next live test: force-close the frozen game, relaunch offline, re-inject the rebuilt
 DLL, type a command → expect `hello from the void` + a verified line_commit log line.
 
+## 2026-06-27 — Session 4: M0 confirmed live; built M3+M4 (real CLI)
+
+- **M0 CONFIRMED LIVE:** "hello from the void" rendered in the real scrollback
+  after injecting the rebuilt DLL. Find+call line_append works end to end.
+- Reworked for the real-CLI goal (synchronous, persistent session):
+  - **bridge.cpp** now runs ONE persistent `powershell.exe -NoProfile -NoLogo`
+    (REPL over redirected pipes). `cd`/vars persist. Per-command output is
+    delimited by a unique marker line; reads poll with PeekNamedPipe and a 15s
+    timeout (bounds the main-thread hitch). Init sets empty prompt + ASCII out.
+  - **line_append is now HOOKED** (not just called): while `g_inDispatch` is set
+    we swallow ALL of the game's terminal output, so the fake built-in
+    `dir`/`cd`/`cat`/`help` don't shadow the real shell. Our own output is
+    rendered via the trampoline (`orig_line_append`), bypassing suppression.
+  - **hook_dispatch:** capture typed line -> run orig_dispatch suppressed (keeps
+    engine input bookkeeping) -> `bridge::exec(line)` -> print each output line.
+    Every non-empty command goes to the real shell.
+  - dllmain starts the session on attach, then installs hooks (no startup race).
+- **Known v1 caveats:** BO1 easter-egg commands (zork/doa/login) are shadowed;
+  interactive programs (python REPL, claude) will hang until the 15s timeout
+  (synchronous model). Async + native-passthrough prefix are later upgrades.
+- **To verify next live test:** does the terminal keep accepting input after a
+  command (i.e., is suppressed orig_dispatch enough bookkeeping)? Does `cd` then
+  `dir` show the new directory (persistence)? Watch DebugView `[hooks] shell:`.
+
 ### Assumptions to verify live in x32dbg before trusting the build
 - [ ] dispatch_submit is truly `__cdecl(ctx)` (Ghidra showed no __fastcall tag).
 - [ ] line_append's 4th pushed dword (0) is ignored (decompile typed only 3 args).

@@ -1,16 +1,18 @@
 #include "hooks.h"
-#include "queues.h"
+#include "bridge.h"
 #include "sigscan.h"
 
 #include <windows.h>
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 #include "MinHook.h"
 
 // =============================================================================
 // SIGNATURES  --  confirmed from Ghidra, see notes/offsets.md. BlackOps.exe is
-// 32-bit (x86). Absolute-address operands are wildcarded (?? ?? ?? ??) because
-// the module is ASLR-relocated at load; the scan runs over the relocated image.
+// 32-bit (x86) with ASLR OFF (always loads at 0x400000), so absolute operands
+// are stable; some are still wildcarded where it keeps the pattern readable.
 // =============================================================================
 namespace sig {
     // line_append = FUN_004ef440 (RVA 0xEF440). __cdecl(text, color, flag, zero).
@@ -51,30 +53,44 @@ void logf(const char* fmt, ...) {
     OutputDebugStringA(buf);
 }
 
-// ---- line_append / line_commit (RESOLVED, not hooked -- we CALL them) --------
+// ---- line_append: HOOKED + CALLED -------------------------------------------
 // line_append: void __cdecl(const char* text, int color, int flag, int zero).
-// Mirrors the game's own call: line_append(text, 1, 1, 0); line_commit();
+//  - HOOKED so that, while the game is dispatching a command, we can swallow its
+//    "Unknown Command" error (those commands are ours to run in the shell).
+//  - CALLED (via the trampoline `orig_line_append`) to render OUR own output,
+//    which bypasses the suppression hook.
 using LineAppend_t = void(__cdecl*)(const char* text, int color, int flag, int zero);
 using LineCommit_t = void(__cdecl*)();
-LineAppend_t fn_line_append = nullptr;
-LineCommit_t fn_line_commit = nullptr;
+LineAppend_t orig_line_append = nullptr;   // trampoline = the real renderer
+LineCommit_t fn_line_commit   = nullptr;
+uintptr_t    g_moduleBase     = 0;
 
-// Print one line into the terminal scrollback. MAIN THREAD ONLY (call from the
-// submit/frame hooks, never from the shell worker -- off-thread engine calls
-// crash, see CLAUDE.md threading model).
+// Suppression state. Main thread only (set around the orig_dispatch call).
+// While g_inDispatch is set, the game's OWN terminal output is swallowed -- we
+// route every typed command to the real shell instead, so built-ins like the
+// game's fake `dir`/`cd`/`cat` don't shadow the real PowerShell ones. (BO1
+// easter-egg commands like `zork`/`doa` are therefore shadowed too; a native
+// passthrough prefix can be added later if wanted.)
+bool g_inDispatch = false;
+
+void __cdecl hook_line_append(const char* text, int color, int flag, int zero) {
+    if (g_inDispatch) return;   // swallow the game's built-in output
+    if (orig_line_append) orig_line_append(text, color, flag, zero);
+}
+
+// Render one line into the scrollback via the REAL renderer (not our hook).
 void termPrintLine(const char* s) {
-    if (!fn_line_append) return;
-    fn_line_append(s ? s : "", 1, 1, 0);
+    if (!orig_line_append) return;
+    orig_line_append(s ? s : "", 1, 1, 0);
     if (fn_line_commit) fn_line_commit();
 }
 
 // ---- dispatch_submit hook ---------------------------------------------------
-// FUN_0055f800: void __cdecl(ctx). Fires when a command is submitted in the
-// terminal; runs on the main thread. The raw typed line lives at the global
-// input buffer (input_buffer_rva from the module base).
+// FUN_0055f800: void __cdecl(ctx). Fires on Enter; main thread. The raw typed
+// line lives at the global input buffer. We let the game try the command first;
+// if it's not a built-in terminal command we run it in the real shell.
 using Dispatch_t = void(__cdecl*)(void* ctx);
-Dispatch_t   orig_dispatch = nullptr;
-uintptr_t    g_moduleBase  = 0;
+Dispatch_t orig_dispatch = nullptr;
 
 const char* readInputBuffer() {
     if (!g_moduleBase) return nullptr;
@@ -82,26 +98,32 @@ const char* readInputBuffer() {
 }
 
 void __cdecl hook_dispatch(void* ctx) {
-    // ---- M0: prove output injection -------------------------------------
-    termPrintLine("hello from the void");
+    // Capture the typed line BEFORE orig_dispatch (it tokenizes the buffer).
+    std::string input;
+    if (const char* p = readInputBuffer()) input = p;
 
-    // ---- M1: capture the submitted command (logged for now) -------------
-    if (const char* input = readInputBuffer()) {
-        if (*input) {
-            g_inbound.push(input);
-            logf("[hooks] submit: \"%s\"\n", input);
-        }
+    // Empty line: just let the game do its normal thing (re-prompt etc.).
+    if (input.empty()) {
+        if (orig_dispatch) orig_dispatch(ctx);
+        return;
     }
 
-    // ---- M3 (future): drain shell output here, on the main thread -------
-    // while (auto line = g_outbound.tryPop()) termPrintLine(line->c_str());
-
+    // Run the game's dispatch with its output SUPPRESSED -- this preserves the
+    // engine's input/terminal bookkeeping while hiding the fake built-in output.
+    g_inDispatch = true;
     if (orig_dispatch) orig_dispatch(ctx);
+    g_inDispatch = false;
+
+    // Route the command to the real shell and render its output.
+    logf("[hooks] shell: \"%s\"\n", input.c_str());
+    for (auto& line : bridge::exec(input)) {
+        termPrintLine(line.c_str());
+    }
 }
 
 template <typename T>
 bool createHook(const char* name, const char* pattern, void* detour, T& orig) {
-    if (!pattern) { logf("[hooks] %s: no signature yet, skipped\n", name); return false; }
+    if (!pattern) { logf("[hooks] %s: no signature, skipped\n", name); return false; }
     uintptr_t addr = sigscan::findInModule("BlackOps.exe", pattern);
     if (!addr) { logf("[hooks] %s: signature NOT FOUND\n", name); return false; }
     if (MH_CreateHook(reinterpret_cast<void*>(addr), detour,
@@ -112,12 +134,6 @@ bool createHook(const char* name, const char* pattern, void* detour, T& orig) {
     MH_EnableHook(reinterpret_cast<void*>(addr));
     logf("[hooks] %s: hooked @ %p\n", name, (void*)addr);
     return true;
-}
-
-uintptr_t resolve(const char* name, const char* pattern) {
-    uintptr_t addr = pattern ? sigscan::findInModule("BlackOps.exe", pattern) : 0;
-    logf("[hooks] resolve %s: %p\n", name, (void*)addr);
-    return addr;
 }
 
 }  // namespace
@@ -132,9 +148,6 @@ bool install() {
         return false;
     }
 
-    // Resolve the call targets we invoke (line_append is the M0 requirement).
-    fn_line_append = reinterpret_cast<LineAppend_t>(resolve("line_append", sig::line_append));
-
     // line_commit has no unique signature -> RVA + prologue verification.
     uintptr_t commit = g_moduleBase + sig::line_commit_rva;
     if (sigscan::matches(commit, sig::line_commit_verify)) {
@@ -145,21 +158,15 @@ bool install() {
         logf("[hooks] line_commit prologue MISMATCH @ %p -- commit skipped\n", (void*)commit);
     }
 
-    bool any = false;
-    any |= createHook("dispatch_submit", sig::submit_handler, (void*)&hook_dispatch, orig_dispatch);
-    // frame_tick hook deferred to M3 (sig::frame_tick still TBD).
+    bool la = createHook("line_append",     sig::line_append,     (void*)&hook_line_append, orig_line_append);
+    bool dp = createHook("dispatch_submit", sig::submit_handler,  (void*)&hook_dispatch,    orig_dispatch);
 
-    return any && fn_line_append != nullptr;
+    return la && dp;
 }
 
 void remove() {
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
-}
-
-void debugEmitLine(const char* text) {
-    // Routed through the outbound queue so it renders on the main thread.
-    g_outbound.push(text ? text : "");
 }
 
 }  // namespace hooks

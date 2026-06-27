@@ -19,9 +19,4 @@ bool install();
 // Removes hooks and uninitializes MinHook. Called on DLL detach.
 void remove();
 
-// M0 helper: queue a literal line to be rendered into the scrollback on the
-// next frame via line_append. Used to prove output injection ("hello from the
-// void") before the shell bridge exists.
-void debugEmitLine(const char* text);
-
 }  // namespace hooks
