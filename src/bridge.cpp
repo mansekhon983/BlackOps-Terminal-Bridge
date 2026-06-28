@@ -12,8 +12,16 @@ HANDLE g_proc = nullptr;
 HANDLE g_thr  = nullptr;
 
 // Marker that delimits one command's output. Must be something normal output
-// won't contain. We print it as a bare string from PowerShell.
-const char* const kMarker = "###BO1_BRIDGE_END_7F3A###";
+// won't contain. kMarker is what we MATCH on; kMarkerCmd is the command we send
+// to PRODUCE it. cmd echoes every piped command line back (echo off only kills
+// the prompt, not the line), and that echoed line would otherwise contain the
+// marker verbatim -> readUntilMarker latches onto the echo instead of the real
+// output (intermittent one-behind desync). The `^` escapes the next char in
+// cmd: the echoed command keeps the caret (so it WON'T match kMarker) while the
+// echo OUTPUT drops it (so it WILL). `BO1_BRIDGE_END` is the stem we strip on.
+const char* const kMarker    = "###BO1_BRIDGE_END_7F3A###";
+const char* const kMarkerCmd = "echo ###BO1_BRIDGE_END^_7F3A###";
+const char* const kMarkerStem = "BO1_BRIDGE_END";
 
 // The interactive host writes a prompt before each read. We can't reliably make
 // it empty (PowerShell falls back to "PS> " for an empty prompt), so we make the
@@ -155,7 +163,7 @@ bool startSession() {
     // from output, then a marker so we can drain all the startup noise.
     writeLine("@echo off");
     writeLine("prompt ###BO1P###");
-    writeLine("echo ###BO1_BRIDGE_END_7F3A###");
+    writeLine(kMarkerCmd);
     std::string banner;
     readUntilMarker(10000, banner);
     return true;
@@ -181,17 +189,30 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
     // still reads its NEXT line (the marker echo, then future commands) from the
     // pipe as normal, so the session is unaffected. A user's own `< file`
     // redirect on the command still wins for that program.
-    std::string line = command + " <nul";
-    writeLine(line.c_str());
+    std::string sent = command + " <nul";
+    writeLine(sent.c_str());
     // Marker on its own line, so it runs even if `command` failed.
-    writeLine("echo ###BO1_BRIDGE_END_7F3A###");
+    writeLine(kMarkerCmd);
 
     std::string out;
     if (!readUntilMarker(timeoutMs, out)) {
         g_desynced = true;     // resync before the next command
         out.append("\n[bridge] command timed out (input-waiting command?)");
     }
-    return splitLines(out);
+
+    // cmd echoed our command line(s) back into the stream. Drop the echo of the
+    // command itself (once -- in case real output legitimately repeats it) and
+    // the echo of the marker command, leaving only the program's real output.
+    std::vector<std::string> lines = splitLines(out);
+    std::vector<std::string> result;
+    result.reserve(lines.size());
+    bool droppedEcho = false;
+    for (auto& ln : lines) {
+        if (!droppedEcho && ln == sent) { droppedEcho = true; continue; }
+        if (ln.find(kMarkerStem) != std::string::npos) continue;  // echoed marker cmd
+        result.push_back(std::move(ln));
+    }
+    return result;
 }
 
 void requestCancel() {
