@@ -243,3 +243,28 @@ addresses added to `offsets.md`. The line-shell bridge stays as a simpler toggle
 Tab/Ctrl-combos/F-keys); that pinning reveal==write doesn't break the input-line
 draw; whether `FUN_00508230` (2nd input path) fires for the terminal or only
 Zork/DOA; exact palette colours.
+
+## 2026-06-28 — Session 9: emulator E0 (ConPTY backend) DONE, validated standalone
+
+Built the ConPTY backend `src/conpty.{h,cpp}` (`conpty::Session`: start/alive/
+write/read/resize/stop; ConPTY entry points resolved dynamically from kernel32 so
+the build is SDK-version-independent and degrades gracefully). Validated with a
+standalone harness `tools/conpty_test.cpp` BEFORE any in-game work, for fast
+iteration (no inject cycle). Two real gotchas found and handled:
+- **No EOF on child exit:** the pseudoconsole keeps the output pipe's write end
+  open, so `read()` blocks forever after the child exits. Pattern: blocking reads
+  on a reader thread + watch the child; `ClosePseudoConsole` (stop()) unblocks it.
+- **Parent-console leak:** a console-subsystem test process let the child attach
+  to the *parent* console and write there instead of the pty (pipe got only the
+  48-byte init burst). A no-console process has none → child must use the pty.
+  Fix: made the harness **GUI-subsystem** (WinMain, `WIN32_EXECUTABLE`), which
+  mirrors the game (BlackOps.exe is a GUI process). The DLL will be clean for the
+  same reason.
+- **Result (GUI harness):** pipe delivered 267 bytes for an interactive `cmd.exe`
+  session — cmd's banner streamed in, then `write("echo INTERACTIVE_OK")` produced
+  an `INTERACTIVE_OK` response back through the pipe. Full bidirectional loop
+  proven: spawn → attach → stream out → write in → stream response.
+- Fast-exiting `cmd /c` children can be truncated on teardown (conhost discards
+  before flushing) — irrelevant to the emulator, which runs persistent shells.
+- `conpty.cpp` added to the DLL sources (compiles, not yet wired). Next: E1 —
+  stand up the 80×26 grid model + blit into `DAT_00bf56a0`/`44d8` each frame.

@@ -40,6 +40,7 @@ add_library(bo1bridge SHARED
   src/bridge.cpp
   src/queues.cpp
   src/sigscan.cpp
+  src/conpty.cpp
 )
 
 target_include_directories(bo1bridge PRIVATE src)
@@ -57,3 +58,13 @@ target_compile_definitions(bo1bridge PRIVATE
 add_executable(inject tools/inject.cpp)
 target_compile_definitions(inject PRIVATE
   WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+
+# --- ConPTY standalone test (emulator milestone E0) --------------------------
+# Proves the pseudoconsole backend works outside the game, for fast iteration.
+add_executable(conpty_test tools/conpty_test.cpp src/conpty.cpp)
+target_include_directories(conpty_test PRIVATE src)
+target_compile_definitions(conpty_test PRIVATE
+  WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+# GUI subsystem = no console, so the child can't leak to a parent console
+# (mirrors the game). Diagnostics go to files, not stdout.
+set_target_properties(conpty_test PROPERTIES WIN32_EXECUTABLE ON)

@@ -71,8 +71,18 @@ keycode→VT  ◄── hook FUN_0047eb90    blit grid → DAT_00bf56a0 / DAT_00
 
 ## Milestones
 
-- **E0 — ConPTY echo.** Swap backend to ConPTY; pipe child stdout straight to the
-  existing line renderer (no grid yet). Proves the pseudoconsole + child spawn.
+- **E0 — ConPTY backend. ✅ DONE (2026-06-28, validated standalone).**
+  `src/conpty.{h,cpp}` — a `conpty::Session` (ConPTY entry points resolved
+  dynamically from kernel32). Proven via the GUI-subsystem harness
+  `tools/conpty_test.cpp`: spawn → child attaches to the pseudoconsole → output
+  streams through the pipe → `write()` delivers input → response streams back
+  (267 bytes incl. cmd banner + an echoed `INTERACTIVE_OK` response).
+  **Gotchas learned:** (a) the pty keeps the output pipe's write end open, so
+  `read()` never EOFs on child exit — use a reader thread + watch the child, then
+  `ClosePseudoConsole` to unblock. (b) A child can leak output to a *parent
+  console* instead of the pty; a no-console (GUI) process has none, so the game
+  is clean — the test must be GUI-subsystem to reproduce that faithfully.
+  Next: integrate into the DLL behind a mode toggle (E1 builds the grid).
 - **E1 — static grid render.** Stand up the 80×26 grid model; blit it into
   `DAT_00bf56a0`/`44d8` each frame with reveal pinned; render a hard-coded test
   pattern + colours. Proves direct-grid rendering and the palette mapping.
