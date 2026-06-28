@@ -355,3 +355,17 @@ box-drawing all correct). DLL builds clean. **Known limits:** no true background
 colour (engine fg-only); glyphs are ASCII approximations (font limit). Shell stays
 cmd.exe. Next: live test of Claude Code (spinner clean? colour? borders readable?)
 + PgUp/PgDn paging. Deferred: investigate the `more` perms error.
+
+**Polish CONFIRMED LIVE (Claude Code):** colour works (red header/box), box borders
+render as ASCII (`+---+`, `|`), redraw is clean (no more doubled-char garble). Big
+visual improvement. Two issues found → fixed/triaged:
+- **Visible height is 27 rows, not ~20** (E1 was wrong). Calibration build (temp
+  row-number overlay at cols 0-1) showed rows 00–26 all visible. At 20/24 rows
+  Claude Code's input box landed below the rendered area (invisible during the tall
+  welcome screen; usable after). **Fixed: `kEmuRows = 27`** (full grid); calibration
+  overlay removed.
+- **Intermittent invisible first keystroke in Claude Code** (random, not repro;
+  plain `abcdef` in cmd typed perfectly). Triaged as a timing interaction with
+  Claude Code's rapid input-box redraw, not a core bug — noted, not chased.
+Glyph nicety to add later: middle-dot U+00B7 (Claude Code's `·` separators) → `?`
+currently; map to `.`.

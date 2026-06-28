@@ -142,8 +142,8 @@ void emuClear() {
 }
 
 // --- E2 pipeline: ConPTY child -> reader thread -> VT parser -> grid -> blit --
-// The visible terminal area is ~20 rows (E1 finding); size the emulator to that.
-const int kEmuRows = 20;
+// Visible terminal height confirmed in-game = 27 rows (the full engine grid, 0..26).
+const int kEmuRows = 27;
 
 conpty::Session  g_pty;
 grid::Screen     g_screen;
