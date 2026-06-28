@@ -34,10 +34,10 @@ void writeLine(const char* s) {
     WriteFile(g_inW, "\r\n", 2, &wrote, nullptr);
 }
 
-// Read from the shell until kMarker is seen (or timeout). Returns the raw text
-// before the marker.
-std::string readUntilMarker(unsigned timeoutMs) {
-    std::string acc;
+// Read from the shell until kMarker is seen (returns true) or timeout (returns
+// false). `out` receives the text before the marker either way.
+bool readUntilMarker(unsigned timeoutMs, std::string& out) {
+    out.clear();
     DWORD start = GetTickCount();
     for (;;) {
         DWORD avail = 0;
@@ -46,19 +46,30 @@ std::string readUntilMarker(unsigned timeoutMs) {
             DWORD want = avail < sizeof(buf) ? avail : sizeof(buf);
             DWORD got = 0;
             if (ReadFile(g_outR, buf, want, &got, nullptr) && got > 0) {
-                acc.append(buf, got);
-                size_t pos = acc.find(kMarker);
-                if (pos != std::string::npos) { acc.resize(pos); break; }
+                out.append(buf, got);
+                size_t pos = out.find(kMarker);
+                if (pos != std::string::npos) { out.resize(pos); return true; }
             }
         } else {
-            if (GetTickCount() - start > timeoutMs) {
-                acc.append("\n[bridge] command timed out");
-                break;
-            }
+            if (GetTickCount() - start > timeoutMs) return false;
             Sleep(5);
         }
     }
-    return acc;
+}
+
+// Discard whatever is sitting in the pipe right now. Used to resync after a
+// command timed out: stale/partial output (and a marker that arrived late) must
+// not bleed into the next command's framing, or every command after it reads
+// the previous command's output -- the "one behind" buffering.
+void drainPipe() {
+    DWORD avail = 0;
+    for (int guard = 0; guard < 4096; ++guard) {
+        if (!PeekNamedPipe(g_outR, nullptr, 0, nullptr, &avail, nullptr) || avail == 0) break;
+        char buf[4096];
+        DWORD want = avail < sizeof(buf) ? avail : sizeof(buf);
+        DWORD got = 0;
+        if (!ReadFile(g_outR, buf, want, &got, nullptr) || got == 0) break;
+    }
 }
 
 std::vector<std::string> splitLines(const std::string& text) {
@@ -145,18 +156,42 @@ bool startSession() {
     writeLine("@echo off");
     writeLine("prompt ###BO1P###");
     writeLine("echo ###BO1_BRIDGE_END_7F3A###");
-    readUntilMarker(10000);
+    std::string banner;
+    readUntilMarker(10000, banner);
     return true;
 }
+
+// Set when a command times out: the session framing is suspect, so the next
+// exec drains the pipe before sending anything.
+bool g_desynced = false;
 
 std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
     if (!sessionAlive()) {
         return { "[bridge] shell session is not running" };
     }
-    writeLine(command.c_str());
+
+    // A previous command timed out -> stale bytes may still be in the pipe.
+    // Clear them so they can't be read as THIS command's output.
+    if (g_desynced) { drainPipe(); g_desynced = false; }
+
+    // Redirect this command's stdin from NUL. An interactive program (python,
+    // more, sort, set /p, ftp, a bare REPL) then gets EOF immediately and exits
+    // instead of blocking on the session pipe and swallowing our end-marker --
+    // which is what caused the hang / "buffering" / one-command-behind lag. cmd
+    // still reads its NEXT line (the marker echo, then future commands) from the
+    // pipe as normal, so the session is unaffected. A user's own `< file`
+    // redirect on the command still wins for that program.
+    std::string line = command + " <nul";
+    writeLine(line.c_str());
     // Marker on its own line, so it runs even if `command` failed.
     writeLine("echo ###BO1_BRIDGE_END_7F3A###");
-    return splitLines(readUntilMarker(timeoutMs));
+
+    std::string out;
+    if (!readUntilMarker(timeoutMs, out)) {
+        g_desynced = true;     // resync before the next command
+        out.append("\n[bridge] command timed out (input-waiting command?)");
+    }
+    return splitLines(out);
 }
 
 void requestCancel() {
