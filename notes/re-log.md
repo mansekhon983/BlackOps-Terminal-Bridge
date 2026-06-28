@@ -168,3 +168,40 @@ output mid-stream instead of paging through all of it.
   that is still actively streaming (e.g. `ping -t`) — that finishes on the worker
   at the 15s timeout, output discarded. A true kill needs CREATE_NEW_PROCESS_GROUP
   + GenerateConsoleCtrlEvent or TerminateProcess of the child, a later upgrade.
+
+## 2026-06-28 — Session 7: input-waiting hang + command-echo (CONFIRMED LIVE)
+
+User: "still buffers sometimes" and, after the first fix, "every command reprints
+the command followed by <nul on a new line." Two distinct cmd-over-pipe issues,
+root-caused empirically by driving `cmd.exe < scriptfile` and inspecting raw bytes.
+
+1. **Input-waiting commands hang the session.** A command that reads stdin
+   (`python`, `more`, `sort`, `set /p`, `ftp`, a bare REPL, or an unrecognized
+   command that drops to a sub-prompt) blocks on the session pipe and swallows
+   our end-marker echo → 15s timeout → every later command reads the previous
+   command's output (the "one behind" buffering). **Fix:** append ` <nul` to each
+   command so input-waiters get immediate EOF and exit; cmd still reads its next
+   line from the pipe. A user's own `< file` redirect still wins for that program.
+   Plus: `readUntilMarker` now reports timeout vs found; on timeout set
+   `g_desynced` and `drainPipe()` before the next command so stale bytes can't
+   bleed into its framing.
+
+2. **cmd echoes every piped command line; `echo off` only kills the PROMPT, not
+   the line.** So (a) the user saw their command reprinted (obvious once ` <nul`
+   was appended), and (b) the echoed `echo <marker>` line *contains* the marker
+   verbatim → `readUntilMarker` could latch onto the echo instead of real output
+   (the *intermittent* desync, distinct from #1). **Fix:** send the marker via a
+   caret-escaped command `echo ###BO1_BRIDGE_END^_7F3A###` (`kMarkerCmd`): cmd
+   echoes the command WITH the caret (≠ `kMarker`, no false match) but its OUTPUT
+   drops the caret (= `kMarker`, real match). Then strip from the result the
+   echoed command line (once, by exact match on the sent `cmd <nul`) and any line
+   containing the stem `BO1_BRIDGE_END` (the echoed marker command).
+
+- **CONFIRMED LIVE (user):** output is clean — no reprint, no stray fragments,
+  no one-behind. Interactive programs return immediately instead of hanging.
+- **Usage gotcha (not a bug):** the persistent cmd inherits BlackOps.exe's PATH,
+  which lacks `C:\Windows\System32\OpenSSH`, so bare `ssh` says "not recognized."
+  In-terminal fix (persists for the session): `set PATH=%PATH%;C:\Windows\System32\OpenSSH`,
+  or call `ssh.exe` by full path. Interactive `ssh user@host` login still won't
+  work (the ` <nul` EOF kills the password/keystroke exchange) — only one-shot
+  `ssh user@host "cmd"` form. Same caveat for any REPL / password prompt.
