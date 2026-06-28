@@ -1,5 +1,8 @@
 #include "vtparse.h"
 
+#include <cstdio>
+#include <cstring>
+
 namespace {
 // ANSI SGR 30..37 map directly to our colour indices 0..7; bright is +8.
 inline uint8_t ansiFg(int code) { return static_cast<uint8_t>(code - 30); }
@@ -167,6 +170,17 @@ void Parser::dispatchCsi(char final) {
     case 'M': scr_.deleteLines(arg(0, 1));    break;               // DL
     case 's': scr_.saveCursor();    break;                          // save cursor
     case 'u': scr_.restoreCursor(); break;                          // restore cursor
+    case 'n':                                                       // DSR
+        if (arg(0, 0) == 6) {                                      // cursor position report
+            char buf[32];
+            snprintf(buf, sizeof(buf), "\x1b[%d;%dR",
+                     scr_.curRow() + 1, scr_.curCol() + 1);
+            reply(buf);
+        }
+        break;
+    case 'c':                                                       // DA -> "VT100 with AVO"
+        if (!priv_) reply("\x1b[?1;2c");
+        break;
     case 'm': applySgr(); break;
     case 'r':                                                       // DECSTBM
         if (nargs >= 2) scr_.setScrollRegion(arg(0, 1) - 1, arg(1, 1) - 1);
@@ -219,6 +233,10 @@ void Parser::applySgr() {
 
 void Parser::putCodepoint(uint32_t cp) {
     scr_.putChar(mapCodepoint(cp));
+}
+
+void Parser::reply(const char* s) {
+    if (respond_ && s) respond_(s, static_cast<int>(strlen(s)));
 }
 
 }  // namespace vt

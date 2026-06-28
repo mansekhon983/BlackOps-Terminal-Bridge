@@ -238,6 +238,9 @@ void emuReaderLoop() {
 void emuStart() {
     g_screen.init(sig::grid_cols, kEmuRows);
     g_parser = new vt::Parser(g_screen);
+    // Answer terminal queries (DSR/DA) by writing back to the pty so size
+    // detection works instantly instead of stalling on a ~15s timeout.
+    g_parser->setResponder([](const char* s, int n) { g_pty.write(s, (size_t)n); });
     if (!g_pty.start(static_cast<short>(sig::grid_cols), kEmuRows, "cmd.exe")) {
         logf("[emu] ConPTY start FAILED\n");
         delete g_parser; g_parser = nullptr;

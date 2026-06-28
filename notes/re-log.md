@@ -369,3 +369,21 @@ visual improvement. Two issues found → fixed/triaged:
   Claude Code's rapid input-box redraw, not a core bug — noted, not chased.
 Glyph nicety to add later: middle-dot U+00B7 (Claude Code's `·` separators) → `?`
 currently; map to `.`.
+
+## 2026-06-28 — Session 13: terminal query replies (DSR/DA) — fix size detect / 15s stall
+
+Live test of the 27-row build showed Claude Code rendering INCONSISTENTLY across
+runs: sometimes the good compact layout (logo + bottom input box, fully usable),
+sometimes a broken welcome-card layout with no visible input, plus a **~15s delay
+before the first reply appears**. Diagnosis: the 15s stall is the tell — TUIs detect
+terminal size / capabilities by sending a query (`ESC[6n` cursor-position report,
+often after `ESC[999;999H`, and/or `ESC[c` device attributes) and BLOCKING for the
+reply. Our parser never replied → Claude Code timed out (~15s) and fell back to a
+mis-detected size → inconsistent layout.
+
+**Fix:** `vt::Parser` now writes replies back to the pty via a `Responder` callback
+(set in `emuStart` to `g_pty.write`): DSR `ESC[6n` → `ESC[<row>;<col>R` (cursor
+position, which after the app's `ESC[999;999H` clamps to the real 80x27 → correct
+size), and DA `ESC[c` → `ESC[?1;2c` (VT100). Should remove the stall and make the
+layout consistent. PgUp/PgDn scroll-back confirmed working (minor: the `[SCROLLED]`
+hint partially overprints the bottom row). Pending live test of the query fix.
