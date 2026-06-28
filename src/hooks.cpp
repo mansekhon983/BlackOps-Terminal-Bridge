@@ -178,18 +178,19 @@ void emuBlit() {
     char* gat = gridAttrs();
 
     std::lock_guard<std::mutex> lk(g_screen.mtx);
-    const int rows = g_screen.rows();
     const int cols = g_screen.cols();   // 80
+    const bool scrolled = g_screen.viewOffset() > 0;
 
     for (int r = 0; r < kEmuRows; ++r) {
         for (int c = 0; c < sig::grid_cols; ++c) {
             int gidx = r * sig::grid_cols + c;
-            if (r < rows && c < cols) {
-                const grid::Cell& cell = g_screen.at(r, c);
+            if (c < cols) {
+                // viewAt resolves through the scroll-back history when scrolled up.
+                const grid::Cell& cell = g_screen.viewAt(r, c);
                 uint8_t mapped = ansiToEngine(cell.color);
                 // last cell of a colour span? (next cell differs or row end)
                 bool lastOfRun = (c + 1 >= cols) ||
-                                 (ansiToEngine(g_screen.at(r, c + 1).color) != mapped);
+                                 (ansiToEngine(g_screen.viewAt(r, c + 1).color) != mapped);
                 uint8_t hi = lastOfRun ? mapped : (mapped != 0 ? 0 : 1);  // filler != mapped
                 gch[gidx] = cell.ch ? cell.ch : ' ';
                 gat[gidx] = static_cast<char>((hi << 4) | 1);
@@ -207,12 +208,19 @@ void emuBlit() {
             gat[gidx] = (1 << 4) | 1;
         }
 
-    // Draw a simple caret at the cursor so typing is visible (ConPTY apps rely on
-    // the terminal to render the cursor). Underscore on a blank cell.
-    int cr = g_screen.curRow(), cc = g_screen.curCol();
-    if (cr >= 0 && cr < kEmuRows && cc >= 0 && cc < sig::grid_cols) {
-        int gidx = cr * sig::grid_cols + cc;
-        if (gch[gidx] == ' ') gch[gidx] = '_';
+    if (scrolled) {
+        // Scroll-back indicator on the last visible row.
+        const char* hint = "-- SCROLLED (PgDn) --";
+        int row = kEmuRows - 1;
+        for (int i = 0; hint[i] && i < sig::grid_cols; ++i)
+            gch[row * sig::grid_cols + i] = hint[i];
+    } else {
+        // Caret at the cursor so typing is visible (only when live).
+        int cr = g_screen.curRow(), cc = g_screen.curCol();
+        if (cr >= 0 && cr < kEmuRows && cc >= 0 && cc < sig::grid_cols) {
+            int gidx = cr * sig::grid_cols + cc;
+            if (gch[gidx] == ' ') gch[gidx] = '_';
+        }
     }
 }
 
@@ -291,6 +299,20 @@ LRESULT CALLBACK emuWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                 emuStop();
                 return 0;
             }
+            // PgUp/PgDn: scroll the local scroll-back on the normal screen; pass
+            // through to the app (as VT) when an alt-screen program is running.
+            if (wp == VK_PRIOR || wp == VK_NEXT) {
+                std::lock_guard<std::mutex> lk(g_screen.mtx);
+                if (g_screen.altScreen()) {
+                    ptyWriteStr(wp == VK_PRIOR ? "\x1b[5~" : "\x1b[6~");
+                } else if (wp == VK_PRIOR) {
+                    g_screen.scrollViewUp(kEmuRows / 2);
+                } else {
+                    g_screen.scrollViewDown(kEmuRows / 2);
+                }
+                return 0;
+            }
+            { std::lock_guard<std::mutex> lk(g_screen.mtx); g_screen.scrollToLive(); }
             sendSpecialKey(wp);     // arrows/nav -> VT; printables arrive via WM_CHAR
             return 0;               // swallow so the game never sees the key
         case WM_KEYUP:
@@ -298,6 +320,7 @@ LRESULT CALLBACK emuWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         case WM_CHAR:
         case WM_SYSCHAR: {
+            { std::lock_guard<std::mutex> lk(g_screen.mtx); g_screen.scrollToLive(); }
             char c = static_cast<char>(wp);
             if (c == '\r')      ptyWriteStr("\r");
             else if (c == '\b') { char del = 0x7f; g_pty.write(&del, 1); }  // BS -> DEL

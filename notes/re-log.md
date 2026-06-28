@@ -327,3 +327,31 @@ special keys→VT (arrows `ESC[A..D`, Home/End/PgUp/PgDn/Del/Ins), swallow all k
 msgs (no game action / no ESC pause). Exit hotkey **Ctrl+]** → emuStop. Removed the
 E2 auto-drive demo; added a `_` caret at the grid cursor in `emuBlit`. Hook
 installed in `hooks::install`, restored in `hooks::remove`. cmd.exe stays the shell.
+
+## 2026-06-28 — Session 12: E3 CONFIRMED LIVE; E4/E5 polish (4 items) built
+
+**E3 confirmed live (user):** dir, backspace, up/down history, python REPL, Ctrl+]
+exit all work; **Claude Code itself runs inside the BO1 terminal.** Line-oriented +
+simple-interactive use is solid. Claude Code TUI was usable but messy — diagnosed
+3 causes → drove the polish below. User chose all four polish items.
+
+**Polish built (pending live test):**
+1. **Redraw fidelity** (`grid` + `vtparse`): DECSC/DECRC (`ESC 7/8`, `CSI s/u`),
+   ECH `CSI X`, ICH `CSI @`, DCH `CSI P`, IL `CSI L`, DL `CSI M`, VPA `CSI d`, and
+   real RI (`ESC M` → scrollDown at region top). Fixes the "DDiscobobulatingg" /
+   typing-over-itself garble (apps redraw in place via these ops).
+2. **Colour for TUIs** (`vtparse` applySgr): map `38;5;n` (xterm-256) and
+   `38;2;r;g;b` (truecolour) → nearest ANSI-8 (`xterm256ToAnsi8`/`rgbToAnsi8`);
+   `48;…` bg consumed+ignored (engine cell is fg-only). Claude Code should get colour.
+3. **Scroll-back + paging** (`grid` history deque ≤1000 rows + `viewOffset_`/`viewAt`,
+   `hooks` blit + WndProc): PgUp/PgDn scroll local history on the normal screen
+   (sent to app as `ESC[5~/6~` when `altScreen_`); any key snaps to live; `[SCROLLED]`
+   hint shown. Covers "page through cat".
+4. **Box-drawing/UTF-8** (`vtparse`): UTF-8 decode (1 cell/codepoint) + map box
+   chars→`|`/`-`/`+`/`=`, blocks→`#`/`:`/`.`, braille→`*`, quotes/dashes, else `?`.
+
+Validated off-game via `vtparse_test` (DCH/DECSC-DECRC/ICH, 256+truecolour, UTF-8
+box-drawing all correct). DLL builds clean. **Known limits:** no true background
+colour (engine fg-only); glyphs are ASCII approximations (font limit). Shell stays
+cmd.exe. Next: live test of Claude Code (spinner clean? colour? borders readable?)
++ PgUp/PgDn paging. Deferred: investigate the `more` perms error.

@@ -21,6 +21,7 @@ private:
     void groundByte(unsigned char c);
     void dispatchCsi(char final);
     void applySgr();
+    void putCodepoint(uint32_t cp);   // map a Unicode codepoint to one ASCII cell
 
     grid::Screen& scr_;
 
@@ -31,6 +32,10 @@ private:
     int  pcount_ = 0;      // index of the current param slot
     bool digits_ = false;  // any digit/separator seen this sequence
     bool priv_   = false;  // '?' private-mode marker
+
+    // UTF-8 decode state (text bytes >= 0x80)
+    int      u8len_ = 0;   // continuation bytes still expected
+    uint32_t u8cp_  = 0;   // codepoint being assembled
 };
 
 }  // namespace vt

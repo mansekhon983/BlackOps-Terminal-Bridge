@@ -93,6 +93,32 @@ int main() {
     }
     dump("6: scroll region keeps header/footer", s);
 
+    // 7. redraw ops: save/restore cursor + erase/insert/delete chars
+    s.init(40, 4);
+    vt::Parser p4(s);
+    feed(p4, "\x1b[1;1HABCDEFGH");          // row0: ABCDEFGH
+    feed(p4, "\x1b[1;3H");                   // cursor to col3 (C)
+    feed(p4, "\x1b[2P");                     // DCH 2 -> delete CD -> "ABEFGH"
+    feed(p4, "\x1b[1;1H\x1b""7");            // home, save cursor (ESC 7)
+    feed(p4, "\x1b[3;1Hmoved");              // write on row2
+    feed(p4, "\x1b""8X");                    // restore cursor (ESC 8), write X at home
+    feed(p4, "\x1b[2;1HIJKL\x1b[2;2H\x1b[2@"); // row1 IJKL, ICH 2 at col2 -> "I  JKL"
+    dump("7: DCH / DECSC-DECRC / ICH", s);
+
+    // 8. extended colour: 256-index and truecolour -> nearest ANSI
+    s.init(40, 2);
+    vt::Parser p5(s);
+    feed(p5, "\x1b[38;5;196mRR\x1b[38;5;46mGG\x1b[38;2;0;0;255mBB\x1b[0mWW");
+    dumpRowColors("256/truecolour", s, 0);
+
+    // 9. UTF-8 box-drawing -> ASCII (┌─┐ / │ / └─┘)
+    s.init(40, 3);
+    vt::Parser p6(s);
+    feed(p6, "\x1b[1;1H\xe2\x94\x8c\xe2\x94\x80\xe2\x94\x90");   // ┌─┐
+    feed(p6, "\x1b[2;1H\xe2\x94\x82" "x" "\xe2\x94\x82");         // │x│
+    feed(p6, "\x1b[3;1H\xe2\x94\x94\xe2\x94\x80\xe2\x94\x98");   // └─┘
+    dump("9: UTF-8 box-drawing -> ASCII", s);
+
     printf("\n[vtparse_test] done\n");
     return 0;
 }

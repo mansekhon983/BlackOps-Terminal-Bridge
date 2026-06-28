@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <deque>
 #include <mutex>
 
 namespace grid {
@@ -37,17 +38,26 @@ public:
     void cursorLeft(int n);
     void cursorRight(int n);
     void columnAbsolute(int col);       // CSI G (1-based col)
+    void rowAbsolute(int row);          // CSI d (1-based row)
+    void saveCursor();                  // DECSC / CSI s
+    void restoreCursor();               // DECRC / CSI u
 
     // text
     void putChar(char c);               // at cursor; advances; wraps at right edge
     void carriageReturn();              // col = 0
     void lineFeed();                    // row+1; scroll within region at bottom
+    void reverseIndex();                // ESC M: row-1; scroll down at region top
     void backspace();                   // col-1
     void tab();                         // next 8-col tab stop
 
-    // erase
+    // erase / in-line edits
     void eraseInLine(int mode);         // 0=cur..eol  1=bol..cur  2=whole line
     void eraseInDisplay(int mode);      // 0=cur..end  1=start..cur  2=all (+home)
+    void eraseChars(int n);             // CSI X: blank n cells at cursor, no move
+    void insertChars(int n);            // CSI @: shift row right at cursor
+    void deleteChars(int n);            // CSI P: shift row left at cursor
+    void insertLines(int n);            // CSI L: open n blank lines at cursor (region)
+    void deleteLines(int n);            // CSI M: remove n lines at cursor (region)
 
     // attributes
     void setColor(uint8_t c) { color_ = c; }
@@ -56,6 +66,18 @@ public:
     // scroll region (DECSTBM); defaults to the whole screen
     void setScrollRegion(int top, int bottom);
     void scrollUp(int n);
+    void scrollDown(int n);
+
+    // alternate screen (vim/less): no scroll-back while active
+    void setAltScreen(bool on);
+    bool altScreen() const { return altScreen_; }
+
+    // scroll-back view (call under mtx). viewOffset 0 = live bottom.
+    void scrollViewUp(int n);
+    void scrollViewDown(int n);
+    void scrollToLive() { viewOffset_ = 0; }
+    int  viewOffset() const { return viewOffset_; }
+    const Cell& viewAt(int vrow, int col) const;   // resolve a visible row via history
 
     std::mutex mtx;
 
@@ -66,8 +88,14 @@ private:
     int cols_ = 80, rows_ = 20;
     int cx_ = 0, cy_ = 0;
     int scrollTop_ = 0, scrollBot_ = 19;
+    int scx_ = 0, scy_ = 0;             // saved cursor
     uint8_t color_ = kDefaultColor;
+    uint8_t scolor_ = kDefaultColor;    // saved colour
+    bool altScreen_ = false;
+    int viewOffset_ = 0;
     std::vector<Cell> cells_;
+    std::deque<std::vector<Cell>> history_;   // rows scrolled off the top
+    static const size_t kMaxHistory = 1000;
 };
 
 }  // namespace grid
