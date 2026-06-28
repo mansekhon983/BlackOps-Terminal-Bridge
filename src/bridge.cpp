@@ -2,6 +2,7 @@
 #include "queues.h"
 
 #include <windows.h>
+#include <atomic>
 
 namespace {
 
@@ -18,6 +19,13 @@ const char* const kMarker = "###BO1_BRIDGE_END_7F3A###";
 // it empty (PowerShell falls back to "PS> " for an empty prompt), so we make the
 // prompt a known sentinel and strip it from output instead.
 const char* const kPrompt = "###BO1P###";
+
+// Set by the engine thread (requestCancel) when the user hits Ctrl-C / 'q'.
+// The worker checks it after exec() returns and discards that command's output
+// instead of queueing it. We don't break readUntilMarker mid-read -- that would
+// leave unread bytes in the pipe and desync the next command's marker framing;
+// instead we let the read finish (or time out) and throw the result away.
+std::atomic<bool> g_cancel{false};
 
 void writeLine(const char* s) {
     if (!g_inW) return;
@@ -151,11 +159,20 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs) {
     return splitLines(readUntilMarker(timeoutMs));
 }
 
+void requestCancel() {
+    g_cancel.store(true);
+}
+
 void workerLoop() {
     for (;;) {
         auto cmd = g_inbound.tryPop();
         if (!cmd) { Sleep(16); continue; }
+        g_cancel.store(false);              // arm for this command
         std::vector<std::string> lines = exec(*cmd);
+        if (g_cancel.load()) {              // canceled mid-run: drop the output
+            g_cancel.store(false);
+            continue;
+        }
         for (auto& line : lines) g_outbound.push(std::move(line));
         g_outbound.push("");   // blank separator after each command's output
     }

@@ -33,6 +33,11 @@ std::vector<std::string> exec(const std::string& command, unsigned timeoutMs = 1
 // pushes the resulting lines onto g_outbound for the per-frame pump to render.
 void workerLoop();
 
+// Cancel the command currently being processed: its output is discarded instead
+// of rendered. Called from the engine thread when the user hits Ctrl-C / 'q'.
+// (Does not kill a still-running child process; it stops the flood of output.)
+void requestCancel();
+
 // Terminate the shell and close handles. Called on DLL detach.
 void stopSession();
 

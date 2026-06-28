@@ -129,13 +129,41 @@ void pumpOutput() {
     }
 }
 
+// Abort the command in flight and the flood of output waiting to render: tell
+// the worker to drop the running command's result, empty both queues, and snap
+// the pager back to a clean prompt. NOTE: this stops the *output* -- it does not
+// hard-kill a child process that is still streaming (e.g. `ping -t`); that one
+// keeps running on the worker until its 15s timeout, but its output is discarded.
+void cancelOutput() {
+    bridge::requestCancel();
+    while (g_inbound.tryPop()) {}        // drop anything queued but not yet run
+    while (g_outbound.tryPop()) {}       // drop output not yet rendered
+    g_paused = false;
+    g_pageLines = 0;
+    // '^' starts a colour code in line_append, so don't print "^C" literally.
+    termPrintLine("(canceled)");
+}
+
 // ---- frame_render hook (the per-frame pump) ---------------------------------
 // FUN_00575be0: __cdecl with 6 dword-sized args; we forward them verbatim.
 using Frame_t = void(__cdecl*)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 Frame_t orig_frame = nullptr;
 
+// Poll Ctrl-C each frame while connected. Edge-detected so holding the keys
+// fires once, not every frame. GetAsyncKeyState works regardless of which window
+// element has focus, which the in-game text input doesn't route to us.
+void checkCancel() {
+    static bool prev = false;
+    bool down = g_shellMode
+             && (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+             && (GetAsyncKeyState('C') & 0x8000);
+    if (down && !prev) cancelOutput();
+    prev = down;
+}
+
 void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
                         uint32_t d, uint32_t e, uint32_t f) {
+    checkCancel();                      // Ctrl-C aborts a flood of output
     pumpOutput();                       // feed output BEFORE the reveal pass
     if (orig_frame) orig_frame(a, b, c, d, e, f);
 }
@@ -172,10 +200,15 @@ void runDispatchSilently(void* ctx) {
 
 void __cdecl hook_dispatch(void* ctx) {
     // If we're paused at a --MORE-- break, this Enter just continues paging --
-    // consume it (don't treat it as a command).
+    // consume it (don't treat it as a command). Typing 'q'/'quit' here stops the
+    // rest of the output, like a real pager.
     if (g_paused) {
-        g_paused = false;
-        g_pageLines = 0;
+        if (iequals(readInput(), "q") || iequals(readInput(), "quit")) {
+            cancelOutput();
+        } else {
+            g_paused = false;
+            g_pageLines = 0;
+        }
         return;
     }
 
