@@ -143,3 +143,28 @@ exit. Watch: smooth streaming (no freeze/pager), cd persistence, prompt clean.
       DAT_00bf5f10 / DAT_00bf8120) — guaranteed inside dispatch_submit.
 - [ ] frame_tick: locate for M3 (candidate approach: find the terminal's own
       per-frame draw that consumes DAT_00bf8120).
+
+## 2026-06-28 — Session 6: Ctrl-C / q cancel (CONFIRMED LIVE)
+
+After `dir C:\Windows\System32` flooded the pager, user wanted a way to stop
+output mid-stream instead of paging through all of it.
+
+- **bridge.cpp:** `std::atomic<bool> g_cancel`; `requestCancel()` sets it. The
+  worker arms it (`store(false)`) before each `exec()` and, if set when exec
+  returns, discards that command's output instead of queueing it. We deliberately
+  do NOT interrupt `readUntilMarker` mid-read — leaving unread bytes in the pipe
+  would desync the next command's marker framing; the read finishes (or times
+  out) and the result is thrown away.
+- **hooks.cpp `cancelOutput()`:** requestCancel + drain g_inbound & g_outbound +
+  reset pager (`g_paused=false`, `g_pageLines=0`) + print `(canceled)`. Prints
+  "(canceled)" not "^C" because `^` starts a colour code in line_append.
+- **Ctrl-C:** `checkCancel()` in the frame hook polls `GetAsyncKeyState(VK_CONTROL)
+  & 'C'`, edge-detected (fires once per press). GetAsyncKeyState because the
+  in-game text input doesn't route keys to us. Only active in shell mode.
+- **q/quit at --MORE--:** the g_paused branch of hook_dispatch routes 'q'/'quit'
+  to cancelOutput instead of continuing the page.
+- **CONFIRMED LIVE (user):** both Ctrl-C and q work.
+- **Known limit:** stops the flood of *queued* output; does not hard-kill a child
+  that is still actively streaming (e.g. `ping -t`) — that finishes on the worker
+  at the 15s timeout, output discarded. A true kill needs CREATE_NEW_PROCESS_GROUP
+  + GenerateConsoleCtrlEvent or TerminateProcess of the child, a later upgrade.
