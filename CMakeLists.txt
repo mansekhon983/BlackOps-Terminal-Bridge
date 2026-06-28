@@ -41,6 +41,8 @@ add_library(bo1bridge SHARED
   src/queues.cpp
   src/sigscan.cpp
   src/conpty.cpp
+  src/grid.cpp
+  src/vtparse.cpp
 )
 
 target_include_directories(bo1bridge PRIVATE src)
@@ -68,3 +70,9 @@ target_compile_definitions(conpty_test PRIVATE
 # GUI subsystem = no console, so the child can't leak to a parent console
 # (mirrors the game). Diagnostics go to files, not stdout.
 set_target_properties(conpty_test PROPERTIES WIN32_EXECUTABLE ON)
+
+# --- VT parser + grid off-game unit checks (emulator E2) ---------------------
+add_executable(vtparse_test tools/vtparse_test.cpp src/grid.cpp src/vtparse.cpp)
+target_include_directories(vtparse_test PRIVATE src)
+target_compile_definitions(vtparse_test PRIVATE
+  WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)

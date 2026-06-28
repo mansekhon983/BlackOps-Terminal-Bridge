@@ -2,12 +2,17 @@
 #include "bridge.h"
 #include "sigscan.h"
 #include "queues.h"
+#include "conpty.h"
+#include "grid.h"
+#include "vtparse.h"
 
 #include <windows.h>
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <cctype>
+#include <thread>
+#include <atomic>
 
 #include "MinHook.h"
 
@@ -118,17 +123,17 @@ void writeGlobalInt(uintptr_t rva, int32_t v) {
 }
 
 // ===========================================================================
-// EMULATOR — milestone E1: drive the display grid directly.
-// We write glyphs + per-cell colour into the engine's char/attr grids and let
-// the game's own renderer paint them, bypassing line_append's append-only model.
-// E1 just draws a static test pattern to confirm geometry + colour in-game.
+// EMULATOR — milestone E2: ConPTY child -> VT parser -> grid -> blit.
+// We drive a real terminal grid (grid::Screen) from a pseudoconsole child via
+// the VT parser, then blit that grid into the engine's char/attr grids and let
+// the game's own renderer paint it, bypassing line_append's append-only model.
 // ===========================================================================
 bool g_emuMode = false;
 
 char* gridChars() { return reinterpret_cast<char*>(g_moduleBase + sig::grid_chars_rva); }
 char* gridAttrs() { return reinterpret_cast<char*>(g_moduleBase + sig::grid_attrs_rva); }
 
-// Fill the whole grid with spaces in the default attribute (colour 1, flag 1).
+// Fill the whole engine grid with spaces in the default attribute.
 void emuClear() {
     char* ch = gridChars();
     char* at = gridAttrs();
@@ -136,53 +141,124 @@ void emuClear() {
     for (int i = 0; i < n; ++i) { ch[i] = ' '; at[i] = (1 << 4) | 1; }
 }
 
-// Write a string at (row,col) with a colour (high-nibble palette index 0..15).
-void emuPut(int row, int col, const char* s, int color) {
-    if (row < 0 || row >= sig::grid_rows || !s) return;
-    char* ch = gridChars();
-    char* at = gridAttrs();
-    const char attr = static_cast<char>((color << 4) | 1);
-    for (int c = col; *s && c < sig::grid_cols; ++c, ++s) {
-        int idx = row * sig::grid_cols + c;
-        ch[idx] = *s;
-        at[idx] = attr;
+// --- E2 pipeline: ConPTY child -> reader thread -> VT parser -> grid -> blit --
+// The visible terminal area is ~20 rows (E1 finding); size the emulator to that.
+const int kEmuRows = 20;
+
+conpty::Session  g_pty;
+grid::Screen     g_screen;
+vt::Parser*      g_parser = nullptr;
+std::thread      g_ptyReader;
+std::atomic<bool> g_ptyRunning{false};
+
+// ANSI colour index (0..15) -> engine palette high-nibble. Provisional, from the
+// E1 readout (2≈black 3=red 4=green 5=yellow 6=blue …); calibrated in-game.
+uint8_t ansiToEngine(uint8_t ansi) {
+    static const uint8_t map[8] = {
+        2,  // 0 black
+        3,  // 1 red
+        4,  // 2 green
+        5,  // 3 yellow
+        6,  // 4 blue
+        7,  // 5 magenta
+        8,  // 6 cyan
+        0,  // 7 white -> engine default (white)
+    };
+    return map[ansi & 7];
+}
+
+// Blit the grid model into the engine char/attr grids. Colour uses a "filler"
+// trick to work around the engine's run-drawer off-by-one: it colours a run by
+// the attr of the run's LAST cell, so we put the real colour only on the last
+// cell of each colour span and a distinct filler on the interior cells (the
+// filler is never drawn -- it just makes the run break in the right place).
+void emuBlit() {
+    if (!g_moduleBase) return;
+    char* gch = gridChars();
+    char* gat = gridAttrs();
+
+    std::lock_guard<std::mutex> lk(g_screen.mtx);
+    const int rows = g_screen.rows();
+    const int cols = g_screen.cols();   // 80
+
+    for (int r = 0; r < kEmuRows; ++r) {
+        for (int c = 0; c < sig::grid_cols; ++c) {
+            int gidx = r * sig::grid_cols + c;
+            if (r < rows && c < cols) {
+                const grid::Cell& cell = g_screen.at(r, c);
+                uint8_t mapped = ansiToEngine(cell.color);
+                // last cell of a colour span? (next cell differs or row end)
+                bool lastOfRun = (c + 1 >= cols) ||
+                                 (ansiToEngine(g_screen.at(r, c + 1).color) != mapped);
+                uint8_t hi = lastOfRun ? mapped : (mapped != 0 ? 0 : 1);  // filler != mapped
+                gch[gidx] = cell.ch ? cell.ch : ' ';
+                gat[gidx] = static_cast<char>((hi << 4) | 1);
+            } else {
+                gch[gidx] = ' ';
+                gat[gidx] = (1 << 4) | 1;
+            }
+        }
+    }
+    // Clear any rows below the emulated area (engine grid is taller than kEmuRows).
+    for (int r = kEmuRows; r < sig::grid_rows; ++r)
+        for (int c = 0; c < sig::grid_cols; ++c) {
+            int gidx = r * sig::grid_cols + c;
+            gch[gidx] = ' ';
+            gat[gidx] = (1 << 4) | 1;
+        }
+}
+
+// Reader thread: pull pty output and feed the parser (under the screen lock).
+void emuReaderLoop() {
+    char buf[4096];
+    while (g_ptyRunning.load()) {
+        DWORD n = g_pty.read(buf, sizeof(buf));
+        if (n == 0) break;                       // pty closed
+        std::lock_guard<std::mutex> lk(g_screen.mtx);
+        if (g_parser) g_parser->feed(buf, static_cast<int>(n));
     }
 }
 
-// Static diagnostic pattern: title, a column ruler, a colour bar (so we can see
-// which palette indices render and in what hue), row-address labels, and a
-// footer. Confirms grid dimensions, orientation, addressing, and per-cell colour.
-void emuRenderTestPattern() {
-    if (!g_moduleBase) return;
+void emuStart() {
+    g_screen.init(sig::grid_cols, kEmuRows);
+    g_parser = new vt::Parser(g_screen);
+    if (!g_pty.start(static_cast<short>(sig::grid_cols), kEmuRows, "cmd.exe")) {
+        logf("[emu] ConPTY start FAILED\n");
+        delete g_parser; g_parser = nullptr;
+        g_emuMode = false;
+        return;
+    }
+    g_ptyRunning.store(true);
+    g_ptyReader = std::thread(emuReaderLoop);
+
+    // Render-only milestone: auto-drive a short demo so there's visible output
+    // (live typing is E3). Detached so we never block the engine thread.
+    std::thread([] {
+        Sleep(700);
+        const char* cmds[] = {
+            "echo Hello from the BO1 terminal emulator\r\n",
+            "ver\r\n",
+            "dir\r\n",
+            "powershell -NoProfile -Command \"Write-Host RED -ForegroundColor Red;"
+            "Write-Host GREEN -ForegroundColor Green; Write-Host YELLOW -ForegroundColor Yellow;"
+            "Write-Host CYAN -ForegroundColor Cyan\"\r\n",
+        };
+        for (const char* c : cmds) {
+            if (!g_ptyRunning.load()) return;
+            g_pty.write(c, strlen(c));
+            Sleep(900);
+        }
+    }).detach();
+
+    logf("[emu] started ConPTY %dx%d\n", sig::grid_cols, kEmuRows);
+}
+
+void emuStop() {
+    g_ptyRunning.store(false);
+    g_pty.stop();                       // unblocks the reader's blocking read()
+    if (g_ptyReader.joinable()) g_ptyReader.join();
+    delete g_parser; g_parser = nullptr;
     emuClear();
-    emuPut(0, 2, "== BO1 TERMINAL EMULATOR :: E1 GRID TEST (80x26) ==", 7);
-
-    // Column ruler on row 2: tens digit then units, so positions are readable.
-    char ruler[81];
-    for (int c = 0; c < sig::grid_cols; ++c) ruler[c] = (char)('0' + (c % 10));
-    ruler[sig::grid_cols - 1] = '\0';
-    emuPut(2, 0, ruler, 4);
-
-    // Colour bar on row 4: index NN then a run of '#' in that colour, 0..9.
-    emuPut(4, 0, "COLORS:", 7);
-    for (int color = 0; color < 10; ++color) {
-        int col = 8 + color * 7;
-        char cell[8];
-        cell[0] = (char)('0' + color);
-        cell[1] = ':';
-        cell[2] = '#'; cell[3] = '#'; cell[4] = '#'; cell[5] = ' '; cell[6] = '\0';
-        emuPut(4, col, cell, color);
-    }
-
-    // Row-address labels, cycling colour so each row is visibly distinct.
-    for (int row = 6; row <= 24; ++row) {
-        char line[64];
-        int color = (row % 8) + 1;
-        snprintf(line, sizeof(line), "row %02d  <- arbitrary cursor addressing works", row);
-        emuPut(row, 4, line, color);
-    }
-
-    emuPut(25, 2, "END OF GRID -- type 'emu' again to exit", 7);
 }
 
 // Drip queued shell output into the terminal, a little per frame, throttled so
@@ -249,7 +325,7 @@ void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
     if (g_emuMode) {
         // Paint our grid, then pin reveal==write so the renderer's reveal/ring
         // half is skipped and only the draw loop runs (drawing our grid).
-        emuRenderTestPattern();
+        emuBlit();
         writeGlobalInt(sig::lines_shown_rva, readGlobalInt(sig::lines_written_rva));
     } else {
         checkCancel();                  // Ctrl-C aborts a flood of output
@@ -308,7 +384,8 @@ void __cdecl hook_dispatch(void* ctx) {
     // every other command (we're painting the grid, not running the BO1 shell).
     if (iequals(input, "emu")) {
         g_emuMode = !g_emuMode;
-        if (!g_emuMode) emuClear();          // wipe the pattern on the way out
+        if (g_emuMode) emuStart();           // spawn the pty + parser pipeline
+        else           emuStop();            // tear it down, wipe the grid
         runDispatchSilently(ctx);
         logf("[hooks] emu mode %s\n", g_emuMode ? "ON" : "OFF");
         return;

@@ -268,3 +268,33 @@ iteration (no inject cycle). Two real gotchas found and handled:
   before flushing) — irrelevant to the emulator, which runs persistent shells.
 - `conpty.cpp` added to the DLL sources (compiles, not yet wired). Next: E1 —
   stand up the 80×26 grid model + blit into `DAT_00bf56a0`/`44d8` each frame.
+
+## 2026-06-28 — Session 10: emulator E1 DONE (live), color quirk diagnosed
+
+E1 (direct-grid render) added to hooks.cpp: `emu` toggle paints a static test
+pattern straight into the engine char/attr grids (`DAT_00bf56a0`/`DAT_00bf44d8`),
+reveal pinned == write so the typewriter half is skipped. **Validated live (user
+photo):**
+- ✅ Direct-grid rendering works — the whole BO1 terminal screen driven by our
+  grid writes, painted by the game's own renderer (authentic CRT look kept).
+- ✅ Geometry + arbitrary row/col addressing correct; full-grid monochrome text
+  is pixel-perfect.
+- 📏 **Visible area ≈ 20 rows** (rows 0–19 fully visible, row 20 clipped), 80 cols.
+  Size the emulator/PTY to ~20 rows, not the 27-row memory grid.
+- ⚠️ **Colour off-by-one (diagnosed):** the engine text drawer `FUN_005f4a90`
+  (called by the `FUN_00575be0` draw loop) is a run-length drawer that colours a
+  run by the attr of the cell that *ends/breaks* the run (`param_5` latched from
+  `attr[iVar11]` at the break). So a per-cell `attr=(color<<4)|1` mis-colours
+  multi-colour rows — only the first cell of a colour span shows (it's the
+  boundary of the preceding space run). A **uniform-attr row has no internal
+  boundary → renders correctly**, which is why monochrome is perfect. Palette
+  readout (fuzzy): 2≈black, 3=red, 4=green, 5=yellow, 6=blue, 7=cyan/magenta,
+  0/1≈white. Fix slated for E2 (user chose "fix colour now"): bring up colour with
+  a uniform-row proof first, then resolve the off-by-one (one-cell attr shift /
+  boundary replication / drive via the game's own writer `FUN_00422d30`).
+
+**E2 plan (approved):** render-only (no live typing yet — that's E3), colour
+included. Pipeline ConPTY→reader thread→VT parser→grid model→per-frame blit.
+New modules `src/grid.{h,cpp}` + `src/vtparse.{h,cpp}`; validate the parser
+off-game with a host harness before the inject cycle. Plan file:
+`~/.claude/plans/drifting-tinkering-peacock.md`.
