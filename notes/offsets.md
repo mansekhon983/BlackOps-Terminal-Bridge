@@ -101,8 +101,21 @@
 | `grid_attrs` | `DAT_00bf44d8` | `0x7F44D8` | attribute grid; byte = `(color<<4)|flag`; renderer decodes **high nibble → per-cell text colour** (~16 palette) |
 | `grid_cursor` | `DAT_00bf812c` | `0x7F812C` | linear cursor = `col + row*0x50`; case 3 of renderer = gotoxy |
 | `scroll_up` | `FUN_005cc680` | `0x1CC680` | scroll grid up one line (`(1,0x1b,1,0x50,1)`) |
-| `key_handler` | `FUN_0047eb90` | `0x7EB90` | **terminal key handler `(ctx, keycode, down)`** — THE input hook. Sees printable chars, `0x7f` backspace, `0xd`/`0xbf` Enter (calls `dispatch_submit`), `0x9a`/`0x9b` up/down arrows (history), checks `0x1b` ESC & `0x03` Ctrl-C. Terminal-scoped (fires only with terminal focus). |
-| `key_handler2` | `FUN_00508230` | `0x108230` | secondary/restricted input path (uppercases, per-char); verify if it fires for the terminal or only Zork/DOA |
+| `key_handler` | `FUN_0047eb90` | `0x7EB90` | **terminal key handler `(ctx, keycode, down)`**. Sees `0x7f` backspace, `0xd`/`0xbf` Enter (calls `dispatch_submit`), `0x9a`/`0x9b` up/down arrows (history), checks `0x1b` ESC & `0x03` Ctrl-C. Printable chars arrive as `param_2==1` "char event" with the char from the `ui_keyboard_focus_key` dvar (idTech Key_Event/Char_Event split). Terminal-scoped. **NOT used for E3** — see below. |
+| `key_dispatch` | `FUN_00569f70` | `0x169F70` | engine key-event funnel; when keycatcher `DAT_02910160 & 0x100` (terminal text input) is set it routes to `FUN_0047eb90`, else to the bind handler `FUN_00587500`. |
+| `keycatcher` | `DAT_02910160` | `0x2510160` | key-catcher bitmask (idTech `cl_keyCatchers`); bit `0x100` = terminal/UI text input active. |
+| `key_handler2` | `FUN_00508230` | `0x108230` | secondary/restricted input path (uppercases, per-char); Zork/DOA. |
+
+### E3 input decision (recon 2026-06-28, `ReconInput.java` → input-recon.txt)
+Game keyboard input is **Windows-message based** — imports `RegisterClassA/Ex`,
+`DefWindowProcA`, `CallWindowProcA`, `GetMessageA`/`PeekMessageA`/`TranslateMessage`/
+`DispatchMessageA`, `SetWindowLongA`; message pump = `FUN_006eb1f0`. **No DirectInput**
+(only GDI `GetDeviceCaps`). → E3 hooks input via a **WndProc subclass** (clean
+`WM_CHAR` chars + `WM_KEYDOWN` special keys, standard Win32 VK codes), NOT the
+engine key-handler. Found the game HWND at runtime via `EnumWindows` (own PID,
+visible, titled). Swallowing messages while in emu mode stops game actions / the
+ESC pause menu (TranslateMessage already produced WM_CHAR in the pump, so swallowing
+WM_KEYDOWN doesn't lose the char). Exit emu via **Ctrl+]** hotkey.
 
 ## Terminal strings used as XREF entry points
 

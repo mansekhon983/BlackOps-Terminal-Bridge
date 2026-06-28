@@ -206,6 +206,14 @@ void emuBlit() {
             gch[gidx] = ' ';
             gat[gidx] = (1 << 4) | 1;
         }
+
+    // Draw a simple caret at the cursor so typing is visible (ConPTY apps rely on
+    // the terminal to render the cursor). Underscore on a blank cell.
+    int cr = g_screen.curRow(), cc = g_screen.curCol();
+    if (cr >= 0 && cr < kEmuRows && cc >= 0 && cc < sig::grid_cols) {
+        int gidx = cr * sig::grid_cols + cc;
+        if (gch[gidx] == ' ') gch[gidx] = '_';
+    }
 }
 
 // Reader thread: pull pty output and feed the parser (under the screen lock).
@@ -230,26 +238,6 @@ void emuStart() {
     }
     g_ptyRunning.store(true);
     g_ptyReader = std::thread(emuReaderLoop);
-
-    // Render-only milestone: auto-drive a short demo so there's visible output
-    // (live typing is E3). Detached so we never block the engine thread.
-    std::thread([] {
-        Sleep(700);
-        const char* cmds[] = {
-            "echo Hello from the BO1 terminal emulator\r\n",
-            "ver\r\n",
-            "dir\r\n",
-            "powershell -NoProfile -Command \"Write-Host RED -ForegroundColor Red;"
-            "Write-Host GREEN -ForegroundColor Green; Write-Host YELLOW -ForegroundColor Yellow;"
-            "Write-Host CYAN -ForegroundColor Cyan\"\r\n",
-        };
-        for (const char* c : cmds) {
-            if (!g_ptyRunning.load()) return;
-            g_pty.write(c, strlen(c));
-            Sleep(900);
-        }
-    }).detach();
-
     logf("[emu] started ConPTY %dx%d\n", sig::grid_cols, kEmuRows);
 }
 
@@ -259,6 +247,96 @@ void emuStop() {
     if (g_ptyReader.joinable()) g_ptyReader.join();
     delete g_parser; g_parser = nullptr;
     emuClear();
+}
+
+// ---- E3 input: WndProc subclass --------------------------------------------
+// Recon (input-recon.txt) confirmed the game is message-pump driven (no
+// DirectInput), so we subclass the game window: while in emu mode, take typed
+// characters from WM_CHAR and special keys from WM_KEYDOWN, translate to VT input
+// bytes, write them to the pty, and SWALLOW the message so the game does nothing
+// with it (no movement, no ESC pause menu). Inert when not in emu mode.
+HWND    g_gameWnd     = nullptr;
+WNDPROC g_origWndProc = nullptr;
+
+void ptyWriteStr(const char* s) { g_pty.write(s, strlen(s)); }
+
+// Special (non-character) virtual keys -> VT sequences. Returns true if handled.
+bool sendSpecialKey(WPARAM vk) {
+    const char* seq = nullptr;
+    switch (vk) {
+    case VK_UP:     seq = "\x1b[A";  break;
+    case VK_DOWN:   seq = "\x1b[B";  break;
+    case VK_RIGHT:  seq = "\x1b[C";  break;
+    case VK_LEFT:   seq = "\x1b[D";  break;
+    case VK_HOME:   seq = "\x1b[H";  break;
+    case VK_END:    seq = "\x1b[F";  break;
+    case VK_PRIOR:  seq = "\x1b[5~"; break;   // PgUp
+    case VK_NEXT:   seq = "\x1b[6~"; break;   // PgDn
+    case VK_DELETE: seq = "\x1b[3~"; break;
+    case VK_INSERT: seq = "\x1b[2~"; break;
+    default: return false;
+    }
+    ptyWriteStr(seq);
+    return true;
+}
+
+LRESULT CALLBACK emuWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    if (g_emuMode) {
+        switch (msg) {
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+            // Exit hotkey: Ctrl+]  (leaves emu mode; ESC then closes the terminal).
+            if (wp == VK_OEM_6 && (GetKeyState(VK_CONTROL) & 0x8000)) {
+                g_emuMode = false;
+                emuStop();
+                return 0;
+            }
+            sendSpecialKey(wp);     // arrows/nav -> VT; printables arrive via WM_CHAR
+            return 0;               // swallow so the game never sees the key
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+            return 0;
+        case WM_CHAR:
+        case WM_SYSCHAR: {
+            char c = static_cast<char>(wp);
+            if (c == '\r')      ptyWriteStr("\r");
+            else if (c == '\b') { char del = 0x7f; g_pty.write(&del, 1); }  // BS -> DEL
+            else if (c != 0)    g_pty.write(&c, 1);
+            return 0;
+        }
+        }
+    }
+    return CallWindowProcA(g_origWndProc, h, msg, wp, lp);
+}
+
+BOOL CALLBACK enumWndCb(HWND h, LPARAM) {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(h, &pid);
+    if (pid == GetCurrentProcessId() && IsWindowVisible(h) &&
+        GetWindow(h, GW_OWNER) == nullptr) {
+        char title[256] = {0};
+        GetWindowTextA(h, title, sizeof(title));
+        if (title[0]) { g_gameWnd = h; return FALSE; }   // first visible titled top-level
+    }
+    return TRUE;
+}
+
+void installInputHook() {
+    EnumWindows(enumWndCb, 0);
+    if (g_gameWnd) {
+        g_origWndProc = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtrA(g_gameWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(emuWndProc)));
+        logf("[emu] input hook on HWND %p (orig %p)\n", g_gameWnd, (void*)g_origWndProc);
+    } else {
+        logf("[emu] input hook: game window NOT FOUND\n");
+    }
+}
+
+void removeInputHook() {
+    if (g_gameWnd && g_origWndProc) {
+        SetWindowLongPtrA(g_gameWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_origWndProc));
+        g_origWndProc = nullptr;
+    }
 }
 
 // Drip queued shell output into the terminal, a little per frame, throttled so
@@ -485,10 +563,16 @@ bool install() {
     uintptr_t frameAddr = resolveRva("frame_render", sig::frame_render_rva, sig::frame_render_verify);
     bool fr = createHookAt("frame_render", frameAddr, (void*)&hook_frame, reinterpret_cast<void**>(&orig_frame));
 
+    // Emulator E3: subclass the game window for live keyboard input (inert until
+    // emu mode is on). Not fatal if the window isn't found.
+    installInputHook();
+
     return la && dp && fr;
 }
 
 void remove() {
+    if (g_emuMode) { g_emuMode = false; emuStop(); }
+    removeInputHook();
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
 }

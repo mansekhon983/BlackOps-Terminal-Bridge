@@ -298,3 +298,32 @@ included. Pipeline ConPTY→reader thread→VT parser→grid model→per-frame b
 New modules `src/grid.{h,cpp}` + `src/vtparse.{h,cpp}`; validate the parser
 off-game with a host harness before the inject cycle. Plan file:
 `~/.claude/plans/drifting-tinkering-peacock.md`.
+
+## 2026-06-28 — Session 11: emulator E2 DONE (live), E3 input recon + build
+
+**E2 CONFIRMED LIVE (user screenshots):** `emu` spawns a ConPTY cmd.exe; output
+flows through `src/vtparse` into `src/grid` and blits to the engine grid. Rendered
+correctly — cmd banner, prompts, command echo, a fully-formatted `dir`, the long
+PowerShell command line-wrapped across 3 rows, scrolling, and a PowerShell colour
+test with **RED/GREEN/YELLOW/CYAN all in the right colours**. Provisional ANSI→
+engine palette (red→3 green→4 yellow→5 cyan→8) + the run-end "filler" colour trick
+both work. Off-game `vtparse_test` validated positioning/erase/SGR/scroll/scroll-
+region first (no inject cycle). Deferred: no scroll-back buffer (long output scrolls
+off). The VT-parser off-by-one colour concern from E1 is handled by the filler trick.
+
+**E3 input recon (`ReconInput.java` → input-recon.txt):** keyboard input is
+**Windows-message driven, no DirectInput** (imports RegisterClass/DefWindowProc/
+CallWindowProc/Get-Peek-Translate-DispatchMessage/SetWindowLong; pump FUN_006eb1f0).
+Engine funnel `FUN_00569f70` routes to terminal handler `FUN_0047eb90` when
+keycatcher `DAT_02910160 & 0x100` is set; printable chars reach FUN_0047eb90 as a
+`param_2==1` char event sourced from the `ui_keyboard_focus_key` dvar (awkward).
+**Decision: WndProc subclass** (clean WM_CHAR + WM_KEYDOWN VK codes) instead of the
+engine handler — see offsets.md.
+
+**E3 built (pending live test):** `src/hooks.cpp` now subclasses the game window
+(`installInputHook`: EnumWindows by own PID/visible/titled → SetWindowLongPtrA).
+`emuWndProc`: while `g_emuMode`, WM_CHAR→pty (Enter→\r, Backspace→0x7f), WM_KEYDOWN
+special keys→VT (arrows `ESC[A..D`, Home/End/PgUp/PgDn/Del/Ins), swallow all key
+msgs (no game action / no ESC pause). Exit hotkey **Ctrl+]** → emuStop. Removed the
+E2 auto-drive demo; added a `_` caret at the grid cursor in `emuBlit`. Hook
+installed in `hooks::install`, restored in `hooks::remove`. cmd.exe stays the shell.
