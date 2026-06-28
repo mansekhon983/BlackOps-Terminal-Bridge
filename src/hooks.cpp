@@ -52,6 +52,16 @@ namespace sig {
     constexpr uintptr_t input_buffer_rva  = 0x007F8130;  // DAT_00bf8130: typed line
     constexpr uintptr_t lines_written_rva = 0x007F8120;  // DAT_00bf8120: write head
     constexpr uintptr_t lines_shown_rva   = 0x007F8124;  // DAT_00bf8124: reveal head
+
+    // Display grid (the emulator target — see terminal-emulator-plan.md). The
+    // renderer's draw loop paints these every frame: grid_chars holds the glyphs
+    // (row-major, 80 cols = 0x50 stride, ~27 rows up to offset 0x86f); grid_attrs
+    // holds per-cell attributes byte = (color<<4)|flag; the high nibble selects
+    // the cell's text colour. A row is drawn until a NUL char or column 80.
+    constexpr uintptr_t grid_chars_rva = 0x007F56A0;  // DAT_00bf56a0
+    constexpr uintptr_t grid_attrs_rva = 0x007F44D8;  // DAT_00bf44d8
+    constexpr int       grid_cols = 80;
+    constexpr int       grid_rows = 27;   // rows 0..26; row 26 is the input line
 }
 
 namespace {
@@ -100,6 +110,79 @@ void termPrintLine(const char* s) {
 int32_t readGlobalInt(uintptr_t rva) {
     if (!g_moduleBase) return 0;
     return *reinterpret_cast<volatile int32_t*>(g_moduleBase + rva);
+}
+
+void writeGlobalInt(uintptr_t rva, int32_t v) {
+    if (!g_moduleBase) return;
+    *reinterpret_cast<volatile int32_t*>(g_moduleBase + rva) = v;
+}
+
+// ===========================================================================
+// EMULATOR — milestone E1: drive the display grid directly.
+// We write glyphs + per-cell colour into the engine's char/attr grids and let
+// the game's own renderer paint them, bypassing line_append's append-only model.
+// E1 just draws a static test pattern to confirm geometry + colour in-game.
+// ===========================================================================
+bool g_emuMode = false;
+
+char* gridChars() { return reinterpret_cast<char*>(g_moduleBase + sig::grid_chars_rva); }
+char* gridAttrs() { return reinterpret_cast<char*>(g_moduleBase + sig::grid_attrs_rva); }
+
+// Fill the whole grid with spaces in the default attribute (colour 1, flag 1).
+void emuClear() {
+    char* ch = gridChars();
+    char* at = gridAttrs();
+    const int n = sig::grid_cols * sig::grid_rows;
+    for (int i = 0; i < n; ++i) { ch[i] = ' '; at[i] = (1 << 4) | 1; }
+}
+
+// Write a string at (row,col) with a colour (high-nibble palette index 0..15).
+void emuPut(int row, int col, const char* s, int color) {
+    if (row < 0 || row >= sig::grid_rows || !s) return;
+    char* ch = gridChars();
+    char* at = gridAttrs();
+    const char attr = static_cast<char>((color << 4) | 1);
+    for (int c = col; *s && c < sig::grid_cols; ++c, ++s) {
+        int idx = row * sig::grid_cols + c;
+        ch[idx] = *s;
+        at[idx] = attr;
+    }
+}
+
+// Static diagnostic pattern: title, a column ruler, a colour bar (so we can see
+// which palette indices render and in what hue), row-address labels, and a
+// footer. Confirms grid dimensions, orientation, addressing, and per-cell colour.
+void emuRenderTestPattern() {
+    if (!g_moduleBase) return;
+    emuClear();
+    emuPut(0, 2, "== BO1 TERMINAL EMULATOR :: E1 GRID TEST (80x26) ==", 7);
+
+    // Column ruler on row 2: tens digit then units, so positions are readable.
+    char ruler[81];
+    for (int c = 0; c < sig::grid_cols; ++c) ruler[c] = (char)('0' + (c % 10));
+    ruler[sig::grid_cols - 1] = '\0';
+    emuPut(2, 0, ruler, 4);
+
+    // Colour bar on row 4: index NN then a run of '#' in that colour, 0..9.
+    emuPut(4, 0, "COLORS:", 7);
+    for (int color = 0; color < 10; ++color) {
+        int col = 8 + color * 7;
+        char cell[8];
+        cell[0] = (char)('0' + color);
+        cell[1] = ':';
+        cell[2] = '#'; cell[3] = '#'; cell[4] = '#'; cell[5] = ' '; cell[6] = '\0';
+        emuPut(4, col, cell, color);
+    }
+
+    // Row-address labels, cycling colour so each row is visibly distinct.
+    for (int row = 6; row <= 24; ++row) {
+        char line[64];
+        int color = (row % 8) + 1;
+        snprintf(line, sizeof(line), "row %02d  <- arbitrary cursor addressing works", row);
+        emuPut(row, 4, line, color);
+    }
+
+    emuPut(25, 2, "END OF GRID -- type 'emu' again to exit", 7);
 }
 
 // Drip queued shell output into the terminal, a little per frame, throttled so
@@ -163,8 +246,15 @@ void checkCancel() {
 
 void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
                         uint32_t d, uint32_t e, uint32_t f) {
-    checkCancel();                      // Ctrl-C aborts a flood of output
-    pumpOutput();                       // feed output BEFORE the reveal pass
+    if (g_emuMode) {
+        // Paint our grid, then pin reveal==write so the renderer's reveal/ring
+        // half is skipped and only the draw loop runs (drawing our grid).
+        emuRenderTestPattern();
+        writeGlobalInt(sig::lines_shown_rva, readGlobalInt(sig::lines_written_rva));
+    } else {
+        checkCancel();                  // Ctrl-C aborts a flood of output
+        pumpOutput();                   // feed output BEFORE the reveal pass
+    }
     if (orig_frame) orig_frame(a, b, c, d, e, f);
 }
 
@@ -213,6 +303,18 @@ void __cdecl hook_dispatch(void* ctx) {
     }
 
     std::string input = readInput();
+
+    // Emulator (E1) toggle: 'emu' flips raw-grid mode on/off. While on, swallow
+    // every other command (we're painting the grid, not running the BO1 shell).
+    if (iequals(input, "emu")) {
+        g_emuMode = !g_emuMode;
+        if (!g_emuMode) emuClear();          // wipe the pattern on the way out
+        runDispatchSilently(ctx);
+        logf("[hooks] emu mode %s\n", g_emuMode ? "ON" : "OFF");
+        return;
+    }
+    if (g_emuMode) { runDispatchSilently(ctx); return; }
+
     const bool toggle = iequals(input, kToggleWord);
 
     if (!g_shellMode) {
