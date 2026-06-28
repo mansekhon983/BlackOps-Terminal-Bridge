@@ -205,3 +205,41 @@ root-caused empirically by driving `cmd.exe < scriptfile` and inspecting raw byt
   or call `ssh.exe` by full path. Interactive `ssh user@host` login still won't
   work (the ` <nul` EOF kills the password/keystroke exchange) — only one-shot
   `ssh user@host "cmd"` form. Same caveat for any REPL / password prompt.
+
+## 2026-06-28 — Session 8: full-terminal-emulator feasibility recon (GREEN)
+
+User wants the BO1 terminal to run *interactive, full-screen* programs (vim,
+htop, python REPL, interactive ssh) rendered in the game's own terminal screen.
+That needs a real terminal emulator: ConPTY backend + VT parser + 2D grid +
+per-keystroke I/O — a much bigger effort than the line-shell bridge. Ran read-only
+recon (`ReconTermEmu.java` → `notes/emu-recon.txt`) on the three load-bearing
+unknowns before committing. All three came back favorable:
+
+1. **Display is already a 2D grid.** `FUN_00422d30(ch,color,flag)` writes
+   `grid_chars[cursor]=ch; grid_attrs[cursor]=(color<<4)|flag; cursor++`. Grid =
+   `DAT_00bf56a0` (chars) + `DAT_00bf44d8` (attrs), 80 wide (`0x50`), ~27 rows
+   (offset ≤ `0x86f`), bottom row = input → ~80×26 usable. Cursor = `DAT_00bf812c`
+   (linear `col+row*0x50`). `\n` scrolls via `FUN_005cc680`. So we can blit our
+   own grid straight into engine memory each frame and let the existing renderer
+   (`FUN_00575be0` 2nd half) paint it — no D3D overlay, authenticity kept. Pin
+   `reveal==write` to keep the typewriter/ring half dormant.
+2. **Per-cell colour exists.** attr high nibble → text colour, ~16-entry palette.
+   Enough for ANSI-16 (nearest-map). No bold/underline/truecolor (reverse fakeable).
+3. **Input hook is clean — the make-or-break.** `FUN_0047eb90(ctx, keycode, down)`
+   is the terminal key handler; already sees printable chars, `0x7f` backspace,
+   `0xd` Enter (calls dispatch), `0x9a`/`0x9b` up/down arrows, and checks `0x1b`
+   ESC / `0x03` Ctrl-C. **Terminal-scoped** (fires only with terminal focus → no
+   focus detection needed). Emu mode: hook it, translate keycode→VT bytes to the
+   PTY, `return` to swallow (so the game does no editing, ESC doesn't pause-menu).
+
+**Verdict: green, no architectural blockers.** vim/htop/python/ssh at 80×26 with
+16 colours achievable; literal every-xterm-escape is not the goal. Plan + staged
+milestones (E0 ConPTY echo → E1 grid render → E2 VT parser/vim draws → E3 input
+flows → E4 real use → E5 fidelity) written to `notes/terminal-emulator-plan.md`;
+addresses added to `offsets.md`. The line-shell bridge stays as a simpler toggle
+("line mode") alongside the new emulator ("raw/pty mode").
+
+**Still to confirm live (not blockers):** full keycode table (left/right/Home/End/
+Tab/Ctrl-combos/F-keys); that pinning reveal==write doesn't break the input-line
+draw; whether `FUN_00508230` (2nd input path) fires for the terminal or only
+Zork/DOA; exact palette colours.

@@ -1,0 +1,411 @@
+########## (1)(2) DISPLAY GRID + CURSOR ##########
+
+---- refs to grid_chars DAT_00bf56a0 (bf56a0) ----
+   00422d98  DATA   in FUN_00422d30@00422d30
+   0053a0c2  DATA   in FUN_0053a0b0@0053a0b0
+   005760e8  read   in FUN_00575be0@00575be0
+   0057611c  DATA   in FUN_00575be0@00575be0
+   00576123  DATA   in FUN_00575be0@00575be0
+   005761f7  DATA   in FUN_00575be0@00575be0
+   00576205  DATA   in FUN_00575be0@00575be0
+   00576221  DATA   in FUN_00575be0@00575be0
+   00576232  read   in FUN_00575be0@00575be0
+   0047ee2b  DATA   in FUN_0047eb90@0047eb90
+   00569481  DATA   in FUN_00569450@00569450
+   005cc6e0  DATA   in FUN_005cc680@005cc680
+   005cc72d  DATA   in FUN_005cc680@005cc680
+   0047bf67  DATA   in ?
+   writers: 0  readers: 6
+
+---- refs to grid_attrs DAT_00bf44d8 (bf44d8) ----
+   00422d9e  DATA   in FUN_00422d30@00422d30
+   0053a0d2  DATA   in FUN_0053a0b0@0053a0b0
+   00575e71  read   in FUN_00575be0@00575be0
+   005760d8  read   in FUN_00575be0@00575be0
+   005760df  read   in FUN_00575be0@00575be0
+   005760f6  read   in FUN_00575be0@00575be0
+   00569490  DATA   in FUN_00569450@00569450
+   005cc6f9  DATA   in FUN_005cc680@005cc680
+   005cc73c  DATA   in FUN_005cc680@005cc680
+   writers: 0  readers: 5
+
+---- refs to cursor DAT_00bf812c (bf812c) ----
+   0047ec19  read   in FUN_0047eb90@0047eb90
+   0047ec3a  WRITE  in FUN_0047eb90@0047eb90
+   0047ecc9  read   in FUN_0047eb90@0047eb90
+   0047ecea  WRITE  in FUN_0047eb90@0047eb90
+   0047ee1e  read   in FUN_0047eb90@0047eb90
+   0047ee26  WRITE  in FUN_0047eb90@0047eb90
+   0053a0e7  WRITE  in FUN_0053a0b0@0053a0b0
+   00422d6a  read   in FUN_00422d30@00422d30
+   00422da5  WRITE  in FUN_00422d30@00422d30
+   005cc68b  WRITE  in FUN_005cc680@005cc680
+   00575d2c  WRITE  in FUN_00575be0@00575be0
+   00575d55  WRITE  in FUN_00575be0@00575be0
+   00575d68  WRITE  in FUN_00575be0@00575be0
+   00422d56  WRITE  in FUN_00422d30@00422d30
+   writers: 5  readers: 2
+
+---- refs to active_shell_idx DAT_00bf8234 (bf8234) ----
+   0047ebb6  read   in FUN_0047eb90@0047eb90
+   0047ee55  read   in FUN_0047eb90@0047eb90
+   0047ef06  read   in FUN_0047eb90@0047eb90
+   0055f803  read   in FUN_0055f800@0055f800
+   0055f88e  read   in FUN_0055f800@0055f800
+   005aa314  read   in FUN_005aa2a0@005aa2a0
+   005545ef  read   in FUN_005545e0@005545e0
+   0055468b  read   in FUN_005545e0@005545e0
+   005546f8  WRITE  in FUN_005545e0@005545e0
+   005547b9  read   in FUN_005545e0@005545e0
+   005547bf  WRITE  in FUN_005545e0@005545e0
+   0055485a  read   in FUN_005545e0@005545e0
+   005548cd  read   in FUN_005545e0@005545e0
+   005aefd0  read   in FUN_005aefd0@005aefd0
+   0053a10f  WRITE  in FUN_0053a0b0@0053a0b0
+   005083e2  read   in FUN_00508230@00508230
+   00575d35  read   in FUN_00575be0@00575be0
+   00622b10  read   in FUN_00622b10@00622b10
+   0052c173  read   in FUN_0052c170@0052c170
+   00427946  read   in ?
+   004279eb  read   in ?
+   00427c0a  read   in ?
+   004619bb  read   in ?
+   00461a01  read   in ?
+   00609605  read   in FUN_006095e0@006095e0
+   0060975a  read   in FUN_006095e0@006095e0
+   006097cc  read   in FUN_006095e0@006095e0
+   004fcdd6  read   in ?
+   0055b49c  read   in ?
+   0055b4b0  read   in ?
+   004c3496  read   in FUN_004c3490@004c3490
+   00565fde  read   in ?
+   005f7c3b  read   in ?
+   005f7ca4  read   in ?
+   00624928  read   in ?
+   0064a701  read   in ?
+   0064a711  WRITE  in ?
+   00674490  read   in ?
+   0067451c  read   in ?
+   005444b0  read   in ?
+   writers: 2  readers: 11
+
+===== FUN_00422d30 (display-grid cell writer) =====
+callers:
+   <- 00575c9b  FUN_00575be0
+   <- 00467b31  FUN_00467ab0
+
+void FUN_00422d30(undefined1 param_1,char param_2,byte param_3)
+
+{
+  switch(param_1) {
+  case 1:
+  case 8:
+  case 9:
+  case 0xd:
+    goto switchD_00422d45_caseD_1;
+  default:
+    if (0x86f < DAT_00bf812c) {
+      FUN_005cc680(1,0x1b,1,0x50,1);
+      DAT_00bf812c = 0x820;
+    }
+    (&DAT_00bf56a0)[DAT_00bf812c] = param_1;
+    (&DAT_00bf44d8)[DAT_00bf812c] = param_2 << 4 | param_3;
+    DAT_00bf812c = DAT_00bf812c + 1;
+switchD_00422d45_caseD_1:
+    return;
+  case 10:
+    DAT_00bf812c = 0x820;
+    FUN_005cc680(1,0x1b,1,0x50,1);
+    return;
+  }
+}
+
+
+
+########## (3) KEYBOARD / INPUT CAPTURE ##########
+
+---- refs to input_buffer DAT_00bf8130 (bf8130) ----
+   0040aa79  DATA   in FUN_0040aa70@0040aa70
+   0040aa8b  DATA   in FUN_0040aa70@0040aa70
+   00508252  read   in FUN_00508230@00508230
+   005083f5  WRITE  in FUN_00508230@00508230
+   0055f812  DATA   in FUN_0055f800@0055f800
+   0055f8ca  DATA   in FUN_0055f800@0055f800
+   0047ec10  read   in FUN_0047eb90@0047eb90
+   0047ec87  DATA   in FUN_0047eb90@0047eb90
+   0047ed70  read   in FUN_0047eb90@0047eb90
+   0047ecc0  read   in FUN_0047eb90@0047eb90
+   0047eed6  read   in FUN_0047eb90@0047eb90
+   0047ef22  DATA   in FUN_0047eb90@0047eb90
+   0047ee06  read   in FUN_0047eb90@0047eb90
+   0047ee18  WRITE  in FUN_0047eb90@0047eb90
+   0047ee4f  WRITE  in FUN_0047eb90@0047eb90
+   0047ee39  WRITE  in FUN_0047eb90@0047eb90
+   005a52ed  DATA   in FUN_005a52d0@005a52d0
+   0047ec04  DATA   in FUN_0047eb90@0047eb90
+   0047ec70  DATA   in FUN_0047eb90@0047eb90
+   0047ecb8  DATA   in FUN_0047eb90@0047eb90
+   0047ed20  DATA   in FUN_0047eb90@0047eb90
+   0047ed63  DATA   in FUN_0047eb90@0047eb90
+   0047edfe  DATA   in FUN_0047eb90@0047eb90
+   0047eebb  DATA   in FUN_0047eb90@0047eb90
+   0047eed0  DATA   in FUN_0047eb90@0047eb90
+   0050824a  DATA   in FUN_00508230@00508230
+   0062490c  DATA   in ?
+   006744f3  DATA   in ?
+   writers: 2  readers: 5
+
+===== INPUT-WRITER FUN_00508230 @ 00508230 =====
+callers:
+   <- 004cec8d  FUN_004cec00
+
+void FUN_00508230(undefined4 param_1,int param_2)
+
+{
+  code *pcVar1;
+  char *pcVar2;
+  char *pcVar3;
+  
+  if (*(int *)(DAT_02ff5354 + 0x8a34c) <= *(int *)(DAT_02ff5354 + 0x8a348)) {
+    pcVar2 = &DAT_00bf8130;
+    do {
+      pcVar3 = pcVar2;
+      pcVar2 = pcVar3 + 1;
+    } while (*pcVar3 != '\0');
+    if ((int)(pcVar3 + -0xbf8130) < 0x51) {
+      switch(param_2) {
+      case 8:
+      case 0x7f:
+      case 0xa2:
+        FUN_00666f30();
+        break;
+      default:
+        _toupper(param_2);
+        FUN_00666f30();
+        break;
+      case 10:
+      case 0xd:
+      case 0xbf:
+        FUN_00666f30();
+        break;
+      case 0x20:
+        FUN_00666f30();
+        break;
+      case 0x2d:
+        FUN_00666f30();
+        break;
+      case 0x2e:
+        FUN_00666f30();
+        break;
+      case 0x2f:
+        FUN_00666f30();
+        break;
+      case 0x30:
+      case 0x31:
+      case 0x32:
+      case 0x33:
+      case 0x34:
+      case 0x35:
+      case 0x36:
+      case 0x37:
+      case 0x38:
+      case 0x39:
+        FUN_00666f30();
+        break;
+      case 0x3f:
+        FUN_00666f30();
+      }
+      FUN_00690210();
+      if (param_2 - 0x20U < 0x60) {
+        FUN_00588500();
+        pcVar1 = *(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14);
+        *pcVar3 = (char)param_2;
+        if ((pcVar1 == FUN_005545e0) && (DAT_00bf4488 == 2)) {
+          FUN_004165b0();
+          return;
+        }
+        FUN_004165b0();
+        return;
+      }
+      FUN_00403260();
+    }
+  }
+  return;
+}
+
+
+
+===== INPUT-WRITER FUN_0047eb90 @ 0047eb90 =====
+callers:
+   <- 00569fc8  FUN_00569f70
+   <- 0058796d  FUN_00587500
+   <- 00587b6c  FUN_00587500
+
+void FUN_0047eb90(undefined4 param_1,int param_2,int param_3)
+
+{
+  undefined1 *puVar1;
+  char cVar2;
+  int iVar3;
+  uint uVar4;
+  char *pcVar5;
+  char *pcVar6;
+  uint uVar7;
+  
+  if (param_3 != 0) {
+    while ((param_2 != 3 && (param_2 != 0x1b))) {
+      if ((*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == (code *)&LAB_005444b0) ||
+         (*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == FUN_00622b10)) {
+        *(undefined4 *)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) = DAT_00bf44d4;
+        DAT_00bf44d4 = 0;
+        return;
+      }
+      if (param_2 == 0x7f) {
+        pcVar5 = &DAT_00bf8130;
+        do {
+          pcVar6 = pcVar5;
+          pcVar5 = pcVar6 + 1;
+        } while (*pcVar6 != '\0');
+        if ((int)(pcVar6 + -0xbf8130) < 1) {
+          return;
+        }
+        pcVar6[-1] = '\0';
+        puVar1 = &DAT_00bf569f + DAT_00bf812c;
+        DAT_00bf812c = DAT_00bf812c + -1;
+        *puVar1 = 0;
+        return;
+      }
+      if (param_2 == 0x9a) {
+        uVar7 = DAT_00bf4480 - 1;
+        if (DAT_00bf4484 <= (int)uVar7) {
+          pcVar5 = &DAT_00bf8130;
+          do {
+            pcVar6 = pcVar5;
+            pcVar5 = pcVar6 + 1;
+          } while (*pcVar6 != '\0');
+          DAT_00bf812c = DAT_00bf812c - (int)(pcVar6 + -0xbf8130);
+          iVar3 = DAT_00bf812c / 0x50 + 1;
+          FUN_00547970(iVar3,iVar3,DAT_00bf812c % 0x50 + 1,
+                       pcVar6 + -0xbf8130 + DAT_00bf812c % 0x50 + 1);
+          uVar4 = uVar7 & 0x80000007;
+          if ((int)uVar4 < 0) {
+            uVar4 = (uVar4 - 1 | 0xfffffff8) + 1;
+          }
+          pcVar5 = &DAT_00bf4ea0 + uVar4 * 0x100;
+          iVar3 = (int)&DAT_00bf8130 - (int)pcVar5;
+          DAT_00bf4480 = uVar7;
+          do {
+            cVar2 = *pcVar5;
+            pcVar5[iVar3] = cVar2;
+            pcVar5 = pcVar5 + 1;
+          } while (cVar2 != '\0');
+LAB_0047ec81:
+          FUN_004ef440(&DAT_00bf8130,1,1,0);
+        }
+      }
+      else if (param_2 == 0x9b) {
+        uVar7 = DAT_00bf4480 + 1;
+        if ((int)uVar7 <= DAT_00bf4e88) {
+          pcVar5 = &DAT_00bf8130;
+          do {
+            pcVar6 = pcVar5;
+            pcVar5 = pcVar6 + 1;
+          } while (*pcVar6 != '\0');
+          DAT_00bf812c = DAT_00bf812c - (int)(pcVar6 + -0xbf8130);
+          iVar3 = DAT_00bf812c / 0x50 + 1;
+          FUN_00547970(iVar3,iVar3,DAT_00bf812c % 0x50 + 1,
+                       pcVar6 + -0xbf8130 + DAT_00bf812c % 0x50 + 1);
+          uVar4 = uVar7 & 0x80000007;
+          if ((int)uVar4 < 0) {
+            uVar4 = (uVar4 - 1 | 0xfffffff8) + 1;
+          }
+          pcVar5 = &DAT_00bf4ea0 + uVar4 * 0x100;
+          iVar3 = (int)&DAT_00bf8130 - (int)pcVar5;
+          DAT_00bf4480 = uVar7;
+          do {
+            cVar2 = *pcVar5;
+            pcVar5[iVar3] = cVar2;
+            pcVar5 = pcVar5 + 1;
+          } while (cVar2 != '\0');
+          goto LAB_0047ec81;
+        }
+      }
+      else if ((param_2 == 0xd) || (param_2 == 0xbf)) {
+        FUN_00433720();
+        FUN_0055f800(param_1);
+        uVar7 = DAT_00bf4480 & 0x80000007;
+        pcVar5 = &DAT_00bf8130;
+        if ((int)uVar7 < 0) {
+          uVar7 = (uVar7 - 1 | 0xfffffff8) + 1;
+        }
+        do {
+          cVar2 = *pcVar5;
+          pcVar5[uVar7 * 0x100 + -0x3290] = cVar2;
+          pcVar5 = pcVar5 + 1;
+        } while (cVar2 != '\0');
+        iVar3 = DAT_00bf4480 + 1;
+        if (DAT_00bf4e88 < iVar3) {
+          DAT_00bf4e88 = iVar3;
+        }
+        if (DAT_00bf4484 < (int)(DAT_00bf4480 - 7)) {
+          DAT_00bf4484 = DAT_00bf4484 + 1;
+        }
+        if (*(undefined1 **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == &LAB_00674490) {
+          DAT_00bf4480 = iVar3;
+          return;
+        }
+        DAT_00bf4480 = iVar3;
+        _memset(&DAT_00bf8130,0,0x100);
+        return;
+      }
+      FUN_00403260(param_1,param_2,param_3);
+      if (param_2 != 1) {
+        return;
+      }
+      pcVar5 = &DAT_00bf8130;
+      do {
+        pcVar6 = pcVar5;
+        pcVar5 = pcVar6 + 1;
+      } while (*pcVar6 != '\0');
+      pcVar5 = (char *)FUN_0057ff80("ui_keyboard_focus_key");
+      if (0xfe < (int)(pcVar6 + -0xbf8130)) {
+        return;
+      }
+      FUN_00690210(param_1,0x3fe,0,0,0,0x3f800000,"uin_text_type_zork");
+      iVar3 = FUN_00552bf0(pcVar5,"SPACE");
+      if (iVar3 == 0) {
+        *pcVar6 = ' ';
+        FUN_004165b0(0x20,1,1);
+        return;
+      }
+      iVar3 = FUN_00552bf0(pcVar5,"ENTER");
+      if (iVar3 == 0) {
+        param_3 = 1;
+        param_2 = 0xd;
+      }
+      else {
+        iVar3 = FUN_00552bf0(pcVar5,&PTR_LAB_009b2f78);
+        if (iVar3 != 0) {
+          *pcVar6 = *pcVar5;
+          if ((*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == FUN_005545e0) &&
+             (DAT_00bf4488 == 2)) {
+            FUN_004165b0(0x2a,1,1);
+            return;
+          }
+          FUN_004165b0(*pcVar5,1,1);
+          return;
+        }
+        param_3 = 1;
+        param_2 = 0x7f;
+      }
+    }
+    FUN_0042f3b0(param_1);
+  }
+  return;
+}
+
+
+
+########## key-event string anchors ##########
+009a9c04  "cl_bypassMouseInput"
+     <- 00591153  FUN_00590c10

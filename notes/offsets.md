@@ -90,6 +90,20 @@
 | `DAT_00bf5f10` | `0x7F5F10` | row state buffer; `[row*0x56]`: 1=text, 5=`--MORE--` pager |
 | `FUN_004165b0` | — | per-character cell writer (one glyph onto the current row) |
 
+### Terminal emulator layer (confirmed 2026-06-28, via `ReconTermEmu.java`)
+> The display under `line_append` is a real 2D grid — the basis for the full
+> terminal-emulator project. See `terminal-emulator-plan.md` + re-log session 8.
+
+| Symbol | Address | RVA | Role |
+|---|---|---|---|
+| `cell_write` | `FUN_00422d30` | `0x22D30` | `(ch,color,flag)` → `grid_chars[cursor]=ch; grid_attrs[cursor]=(color<<4)|flag; cursor++`. case `\n`(10) resets cursor + scrolls |
+| `grid_chars` | `DAT_00bf56a0` | `0x7F56A0` | char grid, width `0x50` (80), ~27 rows (offset ≤ `0x86f`); bottom row = input line → ~80×26 usable |
+| `grid_attrs` | `DAT_00bf44d8` | `0x7F44D8` | attribute grid; byte = `(color<<4)|flag`; renderer decodes **high nibble → per-cell text colour** (~16 palette) |
+| `grid_cursor` | `DAT_00bf812c` | `0x7F812C` | linear cursor = `col + row*0x50`; case 3 of renderer = gotoxy |
+| `scroll_up` | `FUN_005cc680` | `0x1CC680` | scroll grid up one line (`(1,0x1b,1,0x50,1)`) |
+| `key_handler` | `FUN_0047eb90` | `0x7EB90` | **terminal key handler `(ctx, keycode, down)`** — THE input hook. Sees printable chars, `0x7f` backspace, `0xd`/`0xbf` Enter (calls `dispatch_submit`), `0x9a`/`0x9b` up/down arrows (history), checks `0x1b` ESC & `0x03` Ctrl-C. Terminal-scoped (fires only with terminal focus). |
+| `key_handler2` | `FUN_00508230` | `0x108230` | secondary/restricted input path (uppercases, per-char); verify if it fires for the terminal or only Zork/DOA |
+
 ## Terminal strings used as XREF entry points
 
 See `re-log.md`. List the exact strings found in Ghidra's Defined Strings and the
