@@ -1,0 +1,103 @@
+==================================================
+FUNCTION FUN_005f4a90 @ 005f4a90
+
+void FUN_005f4a90(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
+                 float param_5,float param_6,undefined4 param_7,undefined4 param_8,
+                 undefined4 param_9,undefined4 param_10,undefined4 param_11)
+
+{
+  float10 fVar1;
+  float fVar2;
+  float fStack_8;
+  float fStack_4;
+  
+  fVar1 = (float10)FUN_006d30f0(param_4,param_9);
+  fStack_4 = (float)fVar1;
+  fStack_8 = (float)fVar1;
+  FUN_005cd7b0(param_1,&param_5,&param_6,&fStack_4,&fStack_8,param_7,param_8);
+  param_5 = param_5 + DAT_009b449c;
+  fVar2 = (float)(DAT_009ddd84 | DAT_009bb564 & (uint)param_5);
+  fVar2 = (param_5 + fVar2) - fVar2;
+  param_6 = param_6 + DAT_009b449c;
+  param_5 = fVar2 - (float)(-(uint)((float)(DAT_009bb564 & (uint)param_5) < fVar2 - param_5) &
+                           DAT_00a4e394);
+  fVar2 = (float)(DAT_009ddd84 | DAT_009bb564 & (uint)param_6);
+  fVar2 = (param_6 + fVar2) - fVar2;
+  param_6 = fVar2 - (float)(-(uint)((float)(DAT_009bb564 & (uint)param_6) < fVar2 - param_6) &
+                           DAT_00a4e394);
+  FUN_0061c4d0(param_2,param_3,param_4,param_5,param_6,0x3f800000,fStack_4,fStack_8,param_10,
+               param_11);
+  return;
+}
+
+
+
+==================================================
+FUNCTION FUN_005d84f0 @ 005d84f0
+
+int FUN_005d84f0(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)
+
+{
+  int iVar1;
+  float10 fVar2;
+  float fVar3;
+  float fVar4;
+  
+  fVar2 = (float10)FUN_006d30f0(param_3,param_4);
+  iVar1 = FUN_006d3110(param_1,param_2,param_3);
+  fVar3 = (float)iVar1 * (float)fVar2 + DAT_009b449c;
+  fVar4 = (float)(DAT_009ddd84 | DAT_009bb564 & (uint)fVar3);
+  fVar4 = (fVar3 + fVar4) - fVar4;
+  return (int)(fVar4 - (float)(-(uint)((float)(DAT_009bb564 & (uint)fVar3) < fVar4 - fVar3) &
+                              DAT_00a4e394));
+}
+
+
+
+==================================================
+FUNCTION FUN_00514ea0 @ 00514ea0
+
+void FUN_00514ea0(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
+                 undefined4 param_5,undefined4 param_6,undefined4 param_7,undefined4 param_8)
+
+{
+  if (DAT_02576110 != 0) {
+    FUN_00540f70(param_1,param_2,param_3,param_4,param_5,param_6,param_7,0,0,0,0,param_8,
+                 DAT_02576110);
+  }
+  return;
+}
+
+
+
+==================================================
+FUNCTION FUN_00422d30 @ 00422d30
+
+void FUN_00422d30(undefined1 param_1,char param_2,byte param_3)
+
+{
+  switch(param_1) {
+  case 1:
+  case 8:
+  case 9:
+  case 0xd:
+    goto switchD_00422d45_caseD_1;
+  default:
+    if (0x86f < DAT_00bf812c) {
+      FUN_005cc680(1,0x1b,1,0x50,1);
+      DAT_00bf812c = 0x820;
+    }
+    (&DAT_00bf56a0)[DAT_00bf812c] = param_1;
+    (&DAT_00bf44d8)[DAT_00bf812c] = param_2 << 4 | param_3;
+    DAT_00bf812c = DAT_00bf812c + 1;
+switchD_00422d45_caseD_1:
+    return;
+  case 10:
+    DAT_00bf812c = 0x820;
+    FUN_005cc680(1,0x1b,1,0x50,1);
+    return;
+  }
+}
+
+
+

@@ -1,0 +1,211 @@
+==================================================
+FUNCTION FUN_005cd7b0 @ 005cd7b0
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_005cd7b0(float *param_1,float *param_2,float *param_3,float *param_4,float *param_5,
+                 undefined4 param_6,undefined4 param_7)
+
+{
+  float fVar1;
+  float fVar2;
+  
+  fVar1 = DAT_009b449c;
+  switch(param_6) {
+  default:
+    fVar2 = *param_1 * *param_2 + param_1[0x1c];
+    break;
+  case 1:
+    fVar2 = *param_1 * *param_2 + param_1[0x14];
+    break;
+  case 2:
+    fVar2 = *param_1 * *param_2 + param_1[0x10] * DAT_009b449c + param_1[0xe];
+    break;
+  case 3:
+    fVar2 = *param_1 * *param_2 + param_1[0x16];
+    break;
+  case 4:
+    *param_2 = (param_1[0xe] + param_1[2]) * *param_2;
+    fVar2 = *param_4 * param_1[2];
+    goto LAB_005cd8aa;
+  case 5:
+    goto switchD_005cd7d3_caseD_5;
+  case 6:
+    *param_2 = *param_2 * param_1[4];
+    fVar2 = param_1[4];
+    goto LAB_005cd8a6;
+  case 7:
+    fVar2 = param_1[0x16] + param_1[0x14];
+    goto LAB_005cd815;
+  case 8:
+    fVar2 = *param_1 * *param_2 + param_1[0x18];
+    break;
+  case 9:
+    fVar2 = param_1[0x1a] + param_1[0x18];
+LAB_005cd815:
+    fVar2 = fVar2 * DAT_009b449c + *param_1 * *param_2;
+    break;
+  case 10:
+    fVar2 = *param_1 * *param_2 + param_1[0x1a];
+  }
+  *param_2 = fVar2;
+  fVar2 = *param_1;
+LAB_005cd8a6:
+  fVar2 = fVar2 * *param_4;
+LAB_005cd8aa:
+  *param_4 = fVar2;
+switchD_005cd7d3_caseD_5:
+  switch(param_7) {
+  default:
+    fVar1 = *param_3 * param_1[1] + param_1[0x1d];
+    break;
+  case 1:
+    fVar1 = *param_3 * param_1[1] + param_1[0x15];
+    break;
+  case 2:
+    *param_3 = *param_3 * param_1[1] + param_1[0x11] * fVar1 + param_1[0xf];
+    goto LAB_005cd9a9;
+  case 3:
+    fVar1 = *param_3 * param_1[1] + param_1[0x17];
+    break;
+  case 4:
+    *param_3 = (param_1[0xf] + param_1[3]) * *param_3;
+    fVar1 = *param_5 * param_1[3];
+    goto LAB_005cd9b2;
+  case 5:
+    goto switchD_005cd8c4_caseD_5;
+  case 6:
+    *param_3 = *param_3 * param_1[5];
+    fVar1 = param_1[5] * *param_5;
+    goto LAB_005cd9b2;
+  case 7:
+    fVar2 = param_1[0x17] + param_1[0x15];
+    goto LAB_005cd90c;
+  case 8:
+    fVar1 = *param_3 * param_1[1] + param_1[0x19];
+    break;
+  case 9:
+    fVar2 = param_1[0x1b] + param_1[0x19];
+LAB_005cd90c:
+    *param_3 = fVar2 * fVar1 + *param_3 * param_1[1];
+    goto LAB_005cd9a9;
+  case 10:
+    fVar1 = *param_3 * param_1[1] + param_1[0x1b];
+  }
+  *param_3 = fVar1;
+LAB_005cd9a9:
+  fVar1 = *param_5 * param_1[1];
+LAB_005cd9b2:
+  *param_5 = fVar1;
+switchD_005cd8c4_caseD_5:
+  if (DAT_0396ee10 != 0) {
+    *param_2 = (float)DAT_0396ee14 * *param_2;
+    *param_3 = (float)DAT_0396ee14 * *param_3;
+    *param_4 = (float)DAT_0396ee14 * *param_4;
+    *param_5 = (float)DAT_0396ee14 * *param_5;
+    fVar1 = (float)DAT_02ee7514;
+    if (DAT_02ee7514 < 0) {
+      fVar1 = fVar1 + _DAT_009cc55c;
+    }
+    *param_2 = *param_2 - fVar1 * DAT_0396ee18;
+    fVar1 = (float)DAT_02ee7518;
+    if (DAT_02ee7518 < 0) {
+      fVar1 = fVar1 + _DAT_009cc55c;
+    }
+    *param_3 = *param_3 - fVar1 * DAT_0396ee1c;
+  }
+  return;
+}
+
+
+
+==================================================
+FUNCTION FUN_0061c4d0 @ 0061c4d0
+
+void FUN_0061c4d0(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
+                 undefined4 param_5,undefined4 param_6,undefined4 param_7,undefined4 param_8,
+                 undefined4 param_9,undefined4 param_10)
+
+{
+  FUN_006d65c0(param_1,param_2,param_3,param_4,param_5,param_6,param_7,param_8,0,param_9,param_10);
+  return;
+}
+
+
+
+==================================================
+FUNCTION FUN_006d3110 @ 006d3110
+
+int FUN_006d3110(char *param_1,int param_2,undefined4 param_3)
+
+{
+  char cVar1;
+  undefined4 uVar2;
+  int iVar3;
+  int iVar4;
+  char *pcVar5;
+  int iVar6;
+  int iStack_4;
+  
+  uVar2 = param_3;
+  iVar4 = 0;
+  iVar6 = 0;
+  if (param_2 < 1) {
+    param_2 = 0x7fffffff;
+  }
+  iStack_4 = 0;
+  cVar1 = *param_1;
+  do {
+    if ((cVar1 == '\0') || (param_2 <= iStack_4)) {
+      return iVar4;
+    }
+    iVar3 = FUN_0054ef40(&param_1,0);
+    pcVar5 = param_1;
+    if ((iVar3 == 0xd) || (iVar3 == 10)) {
+      iVar6 = 0;
+    }
+    else if (iVar3 == 0x5e) {
+      if (((param_1 == (char *)0x0) || (cVar1 = *param_1, cVar1 == '^')) ||
+         (((cVar1 < '0' || ('@' < cVar1)) && (cVar1 != 'F')))) {
+        if ((((*param_1 == 'C') && (param_1 + 1 != (char *)0x0)) &&
+            (cVar1 = param_1[1], cVar1 != '^')) && (('/' < cVar1 && (cVar1 < 'A')))) {
+          pcVar5 = param_1 + 2;
+          param_1 = pcVar5;
+        }
+        else {
+          if (*param_1 != 'L') goto LAB_006d31c9;
+          pcVar5 = param_1 + 1;
+          param_1 = pcVar5;
+        }
+      }
+      else {
+        pcVar5 = param_1 + 1;
+        param_1 = pcVar5;
+      }
+    }
+    else {
+LAB_006d31c9:
+      iVar3 = FUN_006d2fa0(uVar2,iVar3);
+      iVar6 = iVar6 + (uint)*(byte *)(iVar3 + 4);
+      if (iVar4 < iVar6) {
+        iVar4 = iVar6;
+      }
+      iStack_4 = iStack_4 + 1;
+    }
+    cVar1 = *pcVar5;
+  } while( true );
+}
+
+
+
+==================================================
+FUNCTION FUN_006d30f0 @ 006d30f0
+
+float10 FUN_006d30f0(int param_1,float param_2)
+
+{
+  return ((float10)param_2 * (float10)DAT_00a03260) / (float10)*(int *)(param_1 + 4);
+}
+
+
+

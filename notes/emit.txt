@@ -1,0 +1,123 @@
+==================================================
+FUNCTION FUN_006d65c0 @ 006d65c0
+
+void FUN_006d65c0(char *param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4,
+                 undefined4 param_5,undefined4 param_6,undefined4 param_7,undefined4 param_8,
+                 undefined4 param_9,int param_10,int param_11)
+
+{
+  char cVar1;
+  int iVar2;
+  int *piVar3;
+  char *pcVar4;
+  size_t _Size;
+  uint uVar5;
+  uint uVar6;
+  byte bVar7;
+  undefined2 *puVar8;
+  
+  piVar3 = DAT_03b370c0;
+  if (*param_1 != '\0') {
+    pcVar4 = param_1;
+    do {
+      cVar1 = *pcVar4;
+      pcVar4 = pcVar4 + 1;
+    } while (cVar1 != '\0');
+    _Size = (int)pcVar4 - (int)(param_1 + 1);
+    iVar2 = DAT_03b370c0[1];
+    uVar6 = _Size + 0x60 & 0xfffffffc;
+    if (((DAT_03b370c0[4] + DAT_03b370c0[2]) - iVar2) + -0x2000 < (int)uVar6) {
+      DAT_03b370c0[3] = 0;
+      return;
+    }
+    puVar8 = (undefined2 *)(*DAT_03b370c0 + iVar2);
+    DAT_03b370c0[1] = iVar2 + uVar6;
+    piVar3[3] = (int)puVar8;
+    *(undefined1 *)(puVar8 + 1) = 0x11;
+    if (DAT_03e4de1c == 0) {
+      uVar5 = 0xffffffff;
+      bVar7 = 0;
+    }
+    else {
+      uVar5 = *(uint *)(&DAT_03e4de10 + DAT_03e4de1c * 4);
+      if ((int)uVar5 < 0) {
+        bVar7 = 0;
+      }
+      else {
+        bVar7 = (byte)uVar5 | 0x80;
+      }
+    }
+    *(byte *)((int)puVar8 + 3) = bVar7;
+    if (uVar5 < 6) {
+      (&DAT_03e58ec8)[uVar5 * 0x27] = (&DAT_03e58ec8)[uVar5 * 0x27] + 1;
+    }
+    *puVar8 = (short)uVar6;
+    *(undefined4 *)(puVar8 + 2) = param_4;
+    *(undefined4 *)(puVar8 + 4) = param_5;
+    *(undefined4 *)(puVar8 + 6) = param_6;
+    *(undefined4 *)(puVar8 + 8) = param_9;
+    *(undefined4 *)(puVar8 + 0xc) = param_7;
+    *(undefined4 *)(puVar8 + 10) = param_3;
+    *(undefined4 *)(puVar8 + 0xe) = param_8;
+    if (param_10 == 0) {
+      *(undefined4 *)(puVar8 + 0x10) = 0xffffffff;
+    }
+    else {
+      FUN_005152d0(param_10,puVar8 + 0x10);
+    }
+    *(undefined4 *)(puVar8 + 0x12) = param_2;
+    *(undefined4 *)(puVar8 + 0x14) = 0;
+    if (param_11 == 3) {
+      *(undefined4 *)(puVar8 + 0x14) = 4;
+    }
+    else if (param_11 == 6) {
+      *(undefined4 *)(puVar8 + 0x14) = 0xc;
+    }
+    else if (param_11 == 0x80) {
+      *(undefined4 *)(puVar8 + 0x14) = 1;
+    }
+    _memcpy(puVar8 + 0x2e,param_1,_Size);
+    *(undefined1 *)((int)puVar8 + _Size + 0x5c) = 0;
+  }
+  return;
+}
+
+
+
+==================================================
+FUNCTION FUN_004dfa30 @ 004dfa30
+
+int FUN_004dfa30(undefined4 param_1,undefined4 param_2)
+
+{
+  int iVar1;
+  float10 fVar2;
+  float fVar3;
+  float fVar4;
+  
+  fVar2 = (float10)FUN_006d30f0(param_1,param_2);
+  iVar1 = FUN_006d3200(param_1);
+  fVar3 = (float)iVar1 * (float)fVar2 + DAT_009b449c;
+  fVar4 = (float)(DAT_009ddd84 | DAT_009bb564 & (uint)fVar3);
+  fVar4 = (fVar3 + fVar4) - fVar4;
+  return (int)(fVar4 - (float)(-(uint)((float)(DAT_009bb564 & (uint)fVar3) < fVar4 - fVar3) &
+                              DAT_00a4e394));
+}
+
+
+
+================ writers of DAT_00bf56a0 (grid chars) ===========
+00422d98  DATA  in FUN_00422d30 @ 00422d30
+0053a0c2  DATA  in FUN_0053a0b0 @ 0053a0b0
+005760e8  READ  in FUN_00575be0 @ 00575be0
+0057611c  DATA  in FUN_00575be0 @ 00575be0
+00576123  DATA  in FUN_00575be0 @ 00575be0
+005761f7  DATA  in FUN_00575be0 @ 00575be0
+00576205  DATA  in FUN_00575be0 @ 00575be0
+00576221  DATA  in FUN_00575be0 @ 00575be0
+00576232  READ  in FUN_00575be0 @ 00575be0
+0047ee2b  DATA  in FUN_0047eb90 @ 0047eb90
+00569481  DATA  in FUN_00569450 @ 00569450
+005cc6e0  DATA  in FUN_005cc680 @ 005cc680
+005cc72d  DATA  in FUN_005cc680 @ 005cc680
+0047bf67  DATA  in (none)
