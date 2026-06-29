@@ -90,6 +90,38 @@
 | `DAT_00bf5f10` | `0x7F5F10` | row state buffer; `[row*0x56]`: 1=text, 5=`--MORE--` pager |
 | `FUN_004165b0` | — | per-character cell writer (one glyph onto the current row) |
 
+### Grid draw loop + glyph emitter (confirmed 2026-06-29, via `DumpDraw*.java` / `DumpEmit.java`)
+> `frame_render`'s **second half** is the per-cell grid draw loop: it walks all 27
+> rows of `grid_chars`/`grid_attrs` and draws them at screen lines 9..35. Two
+> behaviours here dictate exactly how the emulator must lay out the grid (see the
+> long comment in `emuBlit`, `src/hooks.cpp`). Decompiles: `notes/draw*.txt`, `emit.txt`.
+
+| Symbol | Address | RVA | Role |
+|---|---|---|---|
+| `glyph_run_draw` | `FUN_005f4a90` | `0x1F4A90` | draws one run of glyphs: measure (`FUN_005d84f0`) + transform (`FUN_005cd7b0`) + emit (`FUN_0061c4d0`) |
+| `glyph_emit` | `FUN_006d65c0` | `0x2D65C0` | **the glyph emitter.** Reads the run as a **NUL-terminated C-string** (`strlen`+`memcpy`, ignores the count) into ONE shared per-frame text-vertex buffer; **hard size guard**: when the buffer fills to within `0x2000` of the end it sets `buf[3]=0` and emits **nothing for the rest of the frame**. |
+| `run_width` | `FUN_005d84f0` | `0x1D84F0` | run pixel width; parses `^N` colour codes (0 width) via `FUN_006d3110` |
+| `xform_justify` | `FUN_005cd7b0` | `0x1CD7B0` | position/justify transform (no clip/cull — culling is the budget guard above) |
+
+**Two emulator-load-bearing quirks of the draw loop (`FUN_00575be0` second half):**
+1. **NUL-terminated rows + shared vertex budget.** Because `glyph_emit` reads to the
+   first NUL and shares a capped buffer, a row with no NUL is read ~2KB past its end;
+   a screenful of such runs exhausts the buffer and every later run that frame is
+   dropped → bottom rows vanish. **Fix:** NUL-terminate each grid row after its last
+   glyph (blank rows → all-NUL, which the loop skips).
+2. **Run-colour off-by-one.** The loop splits a row into runs of equal `grid_attrs`
+   and colours each run by the attr of the cell that **ends** the run (the boundary),
+   not the run's own cells. **Fix (emuBlit "filler" scheme):** put the real colour
+   only on a segment's last cell; interior cells = the previous segment's colour
+   (always differs → boundary lands on the segment end); spaces inherit the preceding
+   glyph's colour so a lone 1-cell border becomes a colourable 2-cell segment.
+
+**Palette (calibrated live, `grid_attrs` high nibble):** `0`=white (default/native),
+`2`=black, `3`=red, `4`=green, `5`=yellow, `6`=blue, `7`=magenta, `8`=cyan, `9..F`=white.
+(`1` also renders ~default.) `ansiToEngine` maps ANSI white→`0`; `vtparse rgbToAnsi8`
+sends low-saturation→white and saturated colours through a per-channel `>127`
+threshold (keeps box orange red while the spinner's brightening orange flips red↔yellow).
+
 ### Terminal emulator layer (confirmed 2026-06-28, via `ReconTermEmu.java`)
 > The display under `line_append` is a real 2D grid — the basis for the full
 > terminal-emulator project. See `terminal-emulator-plan.md` + re-log session 8.

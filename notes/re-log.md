@@ -387,3 +387,58 @@ position, which after the app's `ESC[999;999H` clamps to the real 80x27 → corr
 size), and DA `ESC[c` → `ESC[?1;2c` (VT100). Should remove the stall and make the
 layout consistent. PgUp/PgDn scroll-back confirmed working (minor: the `[SCROLLED]`
 hint partially overprints the bottom row). Pending live test of the query fix.
+
+## 2026-06-29 — Session 14: render-cull + colour fidelity SOLVED; debug stripped; native shell
+
+Claude Code now renders **fully and correctly** in-game (commits `d52d80b`,
+`35c3a89`, `e85905c`). Decompiled the grid draw path (`DumpDraw.java`,
+`DumpDraw2.java`, `DumpEmit.java` → `notes/draw.txt`, `draw2.txt`, `emit.txt`) to
+root-cause two real engine quirks; both compensated for in `emuBlit`.
+
+1. **"Bottom is cut off / can't see my input box" = a vertex-budget cull, NOT a
+   write-head problem.** The glyph emitter `FUN_006d65c0` (RVA `0x2D65C0`) reads
+   each run as a **NUL-terminated C-string** (`strlen`+`memcpy`, ignores the count
+   it's given) into ONE shared per-frame text-vertex buffer with a **hard size
+   guard**: when the buffer fills to within `0x2000` of the end it sets `buf[3]=0`
+   and emits nothing for the rest of the frame. Our blit space-filled rows with no
+   NUL → each run was read ~2KB past its row → a screenful drained the buffer → the
+   bottom rows (input box) were dropped. Earlier theories (write head too low; force
+   `written=shown=27`) had NO effect — removed that experiment; `hook_frame` now
+   just pins `reveal==write` to skip the typewriter half. **Fix:** NUL-terminate
+   each grid row after its last glyph (blank row → all-NUL, skipped cleanly).
+   Why the uniform-attr "colour test" rendered all rows but Claude didn't: uniform
+   rows = 1 run/row (fits budget); Claude's mixed-attr rows = many runs/row, each
+   reading to the next stray NUL → budget blown on the top rows.
+
+2. **Run-colour off-by-one — proper inverse (filler scheme), replacing the old
+   one-cell hack.** Confirmed in `FUN_00575be0`'s draw loop: a run of equal
+   `grid_attrs` is coloured by the attr of the cell that ENDS the run (the boundary
+   `attr[iVar11]`), not the run's own cells. **Fix in emuBlit:** put the real colour
+   only on a segment's LAST cell; interior = the PREVIOUS segment's colour (adjacent
+   segments differ by definition → the run boundary lands exactly on the segment
+   end). Plus: spaces inherit the preceding glyph's colour, so a lone 1-cell border
+   (`|`) extends into a colourable 2-cell segment (the engine can't isolate a
+   single-cell run). User-confirmed: welcome box now uniformly correct.
+
+3. **Palette corrected — white IS available.** Earlier belief "no visible white"
+   was wrong (an artifact of the cull bug hiding white rows). Live Ctrl+J test:
+   nibble `0`=white (the game's native default), `2`=black, `3-8`=R/G/Y/B/M/C,
+   `9-F`=white. `ansiToEngine`: ANSI white→`0` (dropped the green hack).
+   `vtparse rgbToAnsi8`: split on saturation — low-sat→white (Claude's cream logo
+   stays white) ; saturated→per-channel `>127` threshold. The threshold deliberately
+   tracks brightness so the "thinking" spinner's pulsing orange flips **red↔yellow**
+   as it brightens (a feature the user wanted back), while the static box orange
+   (g≈119) stays red.
+
+4. **Debug scaffolding stripped** (Ctrl+G diag dump / Ctrl+J colour-test / Ctrl+K
+   force-colour / Ctrl+L row-labels, `emuDumpDiag`, pty-log capture, blit/feed
+   counters). Kept real features: Ctrl+] exit, PgUp/PgDn, input, Ctrl+C.
+
+5. **Shell startup fixed (ssh + home dir).** `conpty::Session::start` gained a `cwd`
+   arg; `emuStart` launches the **native 64-bit cmd via the Sysnative alias**
+   (`C:\Windows\Sysnative\cmd.exe`) in `%USERPROFILE%`. Root cause of "ssh not
+   recognized": BlackOps.exe is 32-bit, so plain `cmd.exe` → 32-bit cmd where
+   `System32` redirects (WOW64) to `SysWOW64`, hiding 64-bit-only tools — ssh/scp
+   live only in the real `System32\OpenSSH`. NOT a PATH problem (a registry-PATH
+   rebuild attempt was wrong and broke `claude`; reverted). The native shell sees
+   the real System32. **User-confirmed:** `cd`→home, `ssh -V`, `claude` all work.
