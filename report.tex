@@ -1,0 +1,600 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[strings]{underscore} % allow _ in text / \texttt
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\lstdefinestyle{mono}{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framesep=4pt,
+  xleftmargin=4pt,
+  showstringspaces=false
+}
+\lstset{style=mono}
+
+% inline code helper. Uses \texttt (works in tables/headers, unlike \lstinline);
+% the underscore package makes _ render literally. Snippets containing ^ \ % { }
+% escape those characters explicitly at the call site.
+\newcommand{\ic}[1]{\texttt{#1}}
+
+\title{\textbf{Claude Code Inside Black Ops}\\[4pt]
+\large Bridging the \emph{Call of Duty: Black Ops} (2010) easter-egg terminal to a
+real Windows shell, and building a full terminal emulator inside the game process}
+\author{Reverse-engineering \& implementation report}
+\date{June 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+The 2010 game \emph{Call of Duty: Black Ops} (engine codename \texttt{t5}, an
+idTech\,3/IW derivative) contains a hidden in-game ``CIA terminal'' easter egg: a
+hardcoded simulation with a fixed command table, a fake filesystem, and scripted
+string responses. It has \emph{no} I/O to the host. This project bolts real
+behaviour onto it entirely from \emph{outside} the binary --- with no source code,
+no symbols, and no debug information --- by injecting a DLL that hooks the game's
+own terminal code. Two capabilities were built on top of the same reverse
+engineering: (1) a \emph{line-shell bridge} that runs typed commands in a real
+persistent \texttt{cmd.exe} and renders the output through the game's own text
+renderer; and (2) a \emph{full terminal emulator} --- a Windows pseudoconsole
+(ConPTY) driving a VT/ANSI parser and an 80$\times$27 character grid that is blitted
+straight into the engine's display memory each frame --- inside which interactive,
+full-screen programs run. The headline result: \textbf{Claude Code itself runs and
+renders correctly inside the Black Ops terminal}, with colour, live spinners, and
+keyboard input. This report documents how every piece works in detail, the notable
+discoveries made while reversing the binary, and every error encountered together
+with its fix.
+\end{abstract}
+
+\tableofcontents
+
+\section{Goal and constraints}
+
+The objective was \emph{authenticity}: the work had to happen inside the real game
+process and render in the game's own terminal, not in a look-alike standalone
+window. A themed external terminal was explicitly considered and rejected.
+
+Hard constraints that shaped every decision:
+
+\begin{itemize}[nosep]
+  \item \textbf{Offline / single-player only.} Black Ops multiplayer ran VAC
+  (Valve Anti-Cheat); injecting into a VAC-protected session is a ban. The terminal
+  is a campaign/menu feature, so all development and use is done with networking off.
+  \item \textbf{Personal, single-machine novelty.} The bridge runs whatever is typed
+  in-game as a host shell command --- arbitrary code execution \emph{by design}. It
+  is never exposed over a network; any future IPC channel must bind to localhost only.
+  \item \textbf{No source, no symbols.} Everything was recovered from the shipped
+  \texttt{BlackOps.exe} via static analysis (Ghidra) plus live observation.
+\end{itemize}
+
+\section{The target binary}
+
+\begin{longtable}{@{}ll@{}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Path & \texttt{C:\textbackslash Games\textbackslash Call of Duty - Black Ops\textbackslash BlackOps.exe} \\
+Size & 8{,}099{,}608 bytes \\
+Machine & \texttt{0x014C} (i386 --- \textbf{32-bit x86}) \\
+Optional header magic & \texttt{0x10B} (PE32) \\
+Image base & \texttt{0x00400000} \\
+ASLR & \textbf{off} (\texttt{DYNAMIC_BASE} clear) --- always loads at \texttt{0x400000} \\
+\bottomrule
+\end{longtable}
+
+\noindent
+Two facts here are load-bearing for the whole project. First, the binary is
+\textbf{32-bit}, which dictates an x86 DLL, an x86 debugger, and --- as discovered
+much later --- causes WOW64 file-system redirection that hides 64-bit-only tools
+(Section~\ref{sec:ssh}). Second, \textbf{ASLR is off}: the module always loads at
+\texttt{0x400000}, so a runtime virtual address equals \texttt{0x400000 + RVA}.
+That makes addresses stable across runs and lets globals be reached as
+\ic{module_base + RVA}. Even so, code is hooked by \emph{byte-pattern signature}
+where practical, so a game update that shifts code does not silently break a
+hardcoded address; absolute address operands inside an instruction are wildcarded
+in the pattern.
+
+\section{Reverse-engineering methodology}
+
+The way into a closed binary like this is the terminal's own \textbf{hardcoded
+response strings}. The recipe:
+
+\begin{enumerate}[nosep]
+  \item In Ghidra, list \emph{Defined Strings} and find a known terminal response
+  (HELP output, a Zork line, a login prompt). 116 candidate strings were exported.
+  \item Follow that string's \emph{cross-references}. The referencing code is the
+  command-dispatch logic, or one hop from it.
+  \item Set a breakpoint there in a live debugger, type the matching command in-game,
+  and read the registers/stack at the break.
+  \item Walk the call stack \emph{up} to where the raw input line is assembled
+  (the submit handler), and \emph{down} to where a response string is handed to the
+  renderer (the line-append function).
+\end{enumerate}
+
+All static recon was scripted with Ghidra \emph{headless} (\texttt{analyzeHeadless},
+\texttt{-noanalysis} against the already-analysed project), so it could be re-run
+cheaply. Those scripts live in \texttt{ghidra_scripts/} (e.g.
+\texttt{DumpTerminalStrings}, \texttt{FindTermRender}, \texttt{ReconTermEmu},
+\texttt{ReconInput}, \texttt{DumpDraw}, \texttt{DumpEmit}); their decompiled output
+is captured in \texttt{notes/} and the curated address table in
+\texttt{notes/offsets.md}.
+
+\section{The engine functions that were recovered}
+\label{sec:functions}
+
+\begin{longtable}{@{}p{3.1cm}p{1.7cm}p{8.3cm}@{}}
+\toprule
+\textbf{Symbol} & \textbf{RVA} & \textbf{Role} \\
+\midrule
+\endhead
+\texttt{line_append}\newline(FUN_004ef440) & \texttt{0xEF440} &
+The authentic scrollback renderer. \ic{__cdecl(const char* text, int color=1, int flag=1, int zero=0)}. Parses \ic{\textasciicircum N} colour codes, wraps at 80 cols, scrolls at 21 rows, draws glyphs via \texttt{FUN_004165b0}. \emph{Called}, not hooked. ``The hard 20\%.'' \\
+\texttt{line_commit}\newline(FUN_00433720) & \texttt{0x33720} &
+\ic{__cdecl(void)}; advances the scrollback to the next line. Called after each \texttt{line_append}. \\
+\texttt{dispatch_submit}\newline(FUN_0055f800) & \texttt{0x15F800} &
+The command dispatcher; fires on Enter, main thread. Reads the typed line from \texttt{DAT_00bf8130}, tokenises, scans the \ic{\{name, handler\}} table, else prints ``Unknown Command''. \emph{Hooked} (capture + route). \\
+\texttt{frame_render}\newline(FUN_00575be0) & \texttt{0x175BE0} &
+The per-frame terminal renderer. First half = typewriter reveal + \ic{--MORE--} pager; second half = the grid draw loop. \emph{Hooked} as the per-frame pump. \\
+\texttt{cell_write}\newline(FUN_00422d30) & \texttt{0x22D30} &
+\ic{(ch, color, flag)} $\rightarrow$ writes \ic{grid_chars[cursor]=ch}, \ic{grid_attrs[cursor]=(color<<4)\textbar flag}, advances the cursor; \texttt{\textbackslash n} scrolls. \\
+\texttt{key_handler}\newline(FUN_0047eb90) & \texttt{0x7EB90} &
+The terminal key handler \ic{(ctx, keycode, down)}. Recovered but \emph{not} used (see Section~\ref{sec:input}). \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{Display globals} (the basis for the emulator):
+
+\begin{longtable}{@{}llp{8.5cm}@{}}
+\toprule
+\textbf{Global} & \textbf{RVA} & \textbf{Meaning} \\
+\midrule
+\texttt{DAT_00bf56a0} & \texttt{0x7F56A0} & Char grid. Row-major, stride \texttt{0x50} (80 cols), 27 rows (to offset \texttt{0x86f}). \\
+\texttt{DAT_00bf44d8} & \texttt{0x7F44D8} & Attribute grid. Byte \ic{= (color<<4)|flag}; high nibble selects the cell text colour. \\
+\texttt{DAT_00bf812c} & \texttt{0x7F812C} & Linear grid cursor \ic{= col + row*0x50}. \\
+\texttt{DAT_00bf8120} & \texttt{0x7F8120} & Lines \emph{written} (write head of a 100-row ring). \\
+\texttt{DAT_00bf8124} & \texttt{0x7F8124} & Lines \emph{revealed} (reveal head; chases the write head = typewriter). \\
+\texttt{DAT_00bf8130} & \texttt{0x7F8130} & The raw typed command line. \\
+\bottomrule
+\end{longtable}
+
+\section{System architecture}
+
+The injected DLL (\texttt{bo1bridge.dll}, x86, static CRT) is loaded into the game
+with a small custom injector (\texttt{tools/inject.cpp}: \texttt{CreateRemoteThread}
++ \texttt{LoadLibrary}). On attach it installs inline hooks with \textbf{MinHook}.
+There are two user-facing modes, both toggled by typing a word in the terminal:
+
+\begin{itemize}[nosep]
+  \item \texttt{connect} --- \textbf{line-shell mode}: each typed command runs in a
+  persistent \texttt{cmd.exe} and the output is rendered with the game's own
+  \texttt{line_append}.
+  \item \texttt{emu} --- \textbf{emulator mode}: a ConPTY shell drives a VT parser and
+  a character grid that is blitted into the engine's display memory; full-screen
+  interactive programs (including Claude Code) render here.
+\end{itemize}
+
+\subsection{Threading model}
+
+Engine functions must only be touched on the \textbf{main thread}; calling them from
+a worker crashes sporadically. The design keeps all engine contact on the per-frame
+hook:
+
+\begin{lstlisting}
+submit hook ---> [inbound queue] ---> worker/reader thread ---> shell / ConPTY
+                                                  |
+                                                  v
+per-frame hook <--- drain <--- [outbound] / grid model <--- output bytes
+   |
+   +-- renders ON THE MAIN THREAD ONLY (line_append, or grid blit)
+\end{lstlisting}
+
+\noindent
+In line-shell mode a worker thread runs the shell and pushes output lines; the frame
+hook drips a few lines per frame. In emulator mode a reader thread pumps ConPTY bytes
+into the VT parser (under a lock), and the frame hook blits the resulting grid.
+
+\section{Line-shell bridge (\texttt{connect} mode)}
+
+A single persistent \texttt{cmd.exe} runs as a REPL over redirected pipes, so
+\texttt{cd} and environment changes persist and there is no per-command process
+launch cost. Each command's output is delimited by a unique marker line; reads poll
+with a timeout that bounds any main-thread hitch. The submit hook captures the typed
+line, runs the original dispatcher with output suppressed (to preserve the engine's
+input bookkeeping while hiding the fake built-ins), executes the command on the
+worker, and the frame hook streams the result into the scrollback via
+\texttt{line_append}. The engine's built-in typewriter reveal and \ic{--MORE--} pager
+(renderer ``case 5'') are reused for free; \texttt{Ctrl-C} and \texttt{q} at a pager
+break abort a flood of output.
+
+This mode is sufficient for ordinary CLI use (file access, persistent \texttt{cd},
+one-shot commands) but cannot host interactive full-screen programs --- which is why
+the emulator was built.
+
+\section{Terminal emulator (\texttt{emu} mode)}
+
+This is the core of the project. The pipeline is:
+
+\begin{lstlisting}
+ConPTY child (cmd.exe) --> reader thread --> vt::Parser --> grid::Screen (80x27)
+        --> emuBlit() paints engine grid each frame --> engine renderer draws it
+input: WndProc subclass --> VT bytes --> ConPTY stdin
+\end{lstlisting}
+
+\subsection{ConPTY backend (\texttt{src/conpty.\{h,cpp\}})}
+
+A Windows pseudoconsole makes the child believe it is talking to a real terminal: it
+emits VT/ANSI and accepts VT input --- exactly the byte stream a terminal emulator
+parses. The ConPTY entry points (\texttt{CreatePseudoConsole},
+\texttt{ResizePseudoConsole}, \texttt{ClosePseudoConsole}) are resolved dynamically
+from \texttt{kernel32} so the build does not depend on SDK header versions. Two pipes
+are created (our input $\rightarrow$ child, child output $\rightarrow$ us), the
+pseudoconsole is attached to the child through a \texttt{STARTUPINFOEX} process-thread
+attribute (\texttt{PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE}), and the child is launched
+with \texttt{CreateProcess}.
+
+\subsection{VT/ANSI parser (\texttt{src/vtparse.\{h,cpp\}})}
+
+A small state machine (ground / escape / CSI) interprets the child's output:
+
+\begin{itemize}[nosep]
+  \item \textbf{Cursor + edits:} CUP, ED, EL, DECSTBM scroll region, DECSC/DECRC save
+  /restore (\ic{ESC 7/8}, \ic{CSI s/u}), ECH \ic{CSI X}, ICH \ic{CSI @}, DCH \ic{CSI P},
+  IL \ic{CSI L}, DL \ic{CSI M}, VPA \ic{CSI d}, RI \ic{ESC M}.
+  \item \textbf{Colour (SGR):} the 16 ANSI colours plus 256-colour (\ic{38;5;n}) and
+  truecolour (\ic{38;2;r;g;b}), each mapped to nearest ANSI-8 by
+  \ic{xterm256ToAnsi8}/\ic{rgbToAnsi8}. Background SGR is consumed but ignored (the
+  engine cell stores foreground only).
+  \item \textbf{UTF-8:} multi-byte sequences are decoded to a codepoint (one grid cell
+  each) and mapped to ASCII: box-drawing $\rightarrow$ \texttt{| - + =}, blocks
+  $\rightarrow$ \texttt{\# : .}, braille (spinners) $\rightarrow$ \texttt{*}, smart
+  quotes/dashes to ASCII, unknown printables to \texttt{?}. The BO1 font is ASCII-only,
+  so this is a readable approximation.
+  \item \textbf{Query replies:} DSR (\ic{ESC[6n}) and DA (\ic{ESC[c}) are answered via a
+  responder callback that writes back to the pty --- without this, size detection
+  stalls (Section~\ref{sec:dsr}).
+  \item \textbf{Alternate screen} (\ic{?1049h/?47h}) and a capped scroll-back history.
+\end{itemize}
+
+\subsection{Grid model (\texttt{src/grid.\{h,cpp\}})}
+
+\ic{grid::Screen} is an 80$\times$27 array of \ic{\{char, color\}} cells with a cursor,
+the current SGR colour, a scroll region, a saved-cursor slot, a scroll-back history
+\ic{deque}, a view offset for paging, and an alt-screen flag. Colour is kept in ANSI
+space (0--7, bright 8--15); the mapping to the engine palette happens later, at blit
+time. A subtle but important member is \ic{wrapPending_}, the deferred-wrap flag
+(Section~\ref{sec:decawm}).
+
+\subsection{Input: WndProc subclass (\texttt{src/hooks.cpp})}
+\label{sec:input}
+
+Static recon showed the game's keyboard input is \textbf{Windows-message driven} ---
+it imports \texttt{RegisterClass}, \texttt{DefWindowProc}, \texttt{CallWindowProc},
+the \texttt{Get/Peek/Translate/DispatchMessage} family --- and uses \emph{no}
+DirectInput. So rather than hook the engine's awkward internal key handler, the game
+window is subclassed (found at runtime via \texttt{EnumWindows} filtered by own PID /
+visible / titled). While in emu mode \ic{emuWndProc} takes \texttt{WM_CHAR} characters
+and \texttt{WM_KEYDOWN} special keys, translates them to VT input bytes
+(arrows $\rightarrow$ \ic{ESC[A..D}, Enter $\rightarrow$ \ic{\textbackslash r}, Backspace
+$\rightarrow$ \texttt{0x7f}, PgUp/PgDn, etc.), writes them to the pty, and
+\textbf{swallows} the message so the game takes no action (no movement, no ESC pause
+menu). \texttt{Ctrl+]} leaves emu mode; PgUp/PgDn page the local scroll-back.
+
+\section{The renderer internals (deep dive)}
+\label{sec:renderer}
+
+Understanding \ic{frame_render} (\texttt{FUN_00575be0}) in detail was the key to making
+arbitrary content render correctly. It has two halves.
+
+\textbf{First half --- typewriter reveal.} It walks the reveal head
+(\texttt{DAT_00bf8124}) toward the write head (\texttt{DAT_00bf8120}), revealing queued
+rows over time, and runs the \ic{--MORE--} pager (``case 5''). The emulator
+\emph{skips} this half by pinning \ic{reveal == write} each frame, so it never repaints
+the line ring over the blitted grid.
+
+\textbf{Second half --- the grid draw loop.} This unconditionally draws all 27 grid
+rows. It iterates rows (screen lines 9..35) and, within each row, splits the cells
+into \emph{runs} of equal attribute, drawing each run with one call chain:
+
+\begin{lstlisting}
+FUN_00575be0 (draw loop)
+  -> FUN_005f4a90 (draw one run)
+       -> FUN_006d30f0 (font metric), FUN_005cd7b0 (position/justify transform)
+       -> FUN_0061c4d0 -> FUN_006d65c0 (the glyph emitter)
+  width measured by FUN_005d84f0 -> FUN_006d3110 (parses ^N colour codes)
+\end{lstlisting}
+
+Two properties of this path turned out to dictate exactly how the grid must be filled,
+and were the root causes of the two biggest bugs.
+
+\subsection{Property A: NUL-terminated rows + a shared vertex budget}
+\label{sec:propA}
+
+\ic{FUN_006d65c0} emits a run by reading it as a \textbf{NUL-terminated C-string}
+(\ic{strlen} then \ic{memcpy} of that length --- it \emph{ignores} the element count it
+is passed) into a \textbf{single per-frame text-vertex buffer}. That buffer has a hard
+size guard:
+
+\begin{lstlisting}
+size = (strlen(run) + 0x60) & ~3;
+if (((buf[4] + buf[2]) - write_offset) - 0x2000 < size) {  // would overflow headroom
+    buf[3] = 0;
+    return;   // emit NOTHING -- for the rest of the frame
+}
+\end{lstlisting}
+
+\noindent
+So a run with \emph{no} NUL terminator is read far past its row (to the next stray NUL,
+roughly 2\,KB away), consuming a huge slice of the shared budget; once the cumulative
+budget is exhausted, \emph{every later run that frame silently draws nothing}.
+
+\subsection{Property B: run colour is taken from the boundary cell}
+\label{sec:propB}
+
+The draw loop recomputes the draw colour from the \emph{current} cell on every
+iteration and emits a run when the attribute changes. At the break, the colour in hand
+is the attribute of the cell that \emph{ended} the run --- i.e. the first cell of the
+\emph{next} colour segment. The run \ic{[start..boundary]} is therefore drawn entirely
+in the \emph{next} segment's colour. Painting each cell its own true colour thus bleeds
+every segment onto its neighbour.
+
+How the compensations for both properties were derived appears in
+Section~\ref{sec:errcolour} and Section~\ref{sec:errvisible}; the final blit is below.
+
+\subsection{The blit (\texttt{emuBlit})}
+
+\ic{emuBlit} runs on the frame hook and fills the engine grid in two passes:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Pass 1 --- glyphs + desired colour.} Copy each grid cell's glyph into
+  \texttt{DAT_00bf56a0} and compute the desired engine colour (\ic{ansiToEngine(cell.color)})
+  into a parallel buffer. \emph{Spaces inherit the preceding glyph's colour}, so a lone
+  one-cell coloured character (e.g. a \texttt{|} border) extends across the following
+  space into a two-cell segment the engine can colour (it cannot isolate a one-cell run).
+  \item \textbf{Pass 2 --- attributes (filler scheme) + NUL termination.} For each colour
+  segment, the interior cells get a ``filler'' attribute equal to the \emph{previous}
+  segment's colour (always different from this segment, so the run boundary lands exactly
+  on the segment end) and only the segment's \emph{last} cell carries the real colour
+  (Property B). Every row is then NUL-terminated after its last glyph so runs stay bounded
+  (Property A); a fully blank row becomes all-NUL and is skipped cleanly.
+\end{enumerate}
+
+\noindent
+After the blit, the frame hook pins \ic{reveal = write} to disable the typewriter half.
+The engine palette, calibrated live, is: nibble \texttt{0} = white (the game's native
+default), \texttt{2} = black, \texttt{3..8} = red/green/yellow/blue/magenta/cyan,
+\texttt{9..F} = white. \ic{ansiToEngine} maps ANSI white to \texttt{0} (no hacks).
+
+\section{Notable and interesting findings}
+
+\begin{enumerate}[label=\textbf{F\arabic*.},leftmargin=*]
+  \item \textbf{The terminal display is a real 2D grid in engine memory.} It is not a
+  list of scrollback strings --- \ic{cell_write} maintains an 80$\times$27 char grid plus a
+  parallel attribute grid at fixed addresses. This is what makes the whole emulator
+  possible: we can write our own grid straight into engine memory and let the game's
+  existing renderer paint it, with zero graphics-API overlay, preserving the authentic
+  CRT look.
+
+  \item \textbf{ASLR is off.} \texttt{BlackOps.exe} always loads at \texttt{0x400000},
+  so addresses are stable and globals are reachable as \ic{base + RVA}. This is unusual
+  for the era and made both static and dynamic analysis far easier.
+
+  \item \textbf{Run colour is off-by-one by design.} The engine colours a run by the
+  cell that \emph{ends} it (Property B, Section~\ref{sec:propB}). This is fine for the
+  game's own content (its colour changes mostly fall on spaces) but is hostile to
+  arbitrary per-cell colour; it forced the ``filler'' scheme.
+
+  \item \textbf{The renderer shares a capped per-frame vertex buffer and reads rows as
+  C-strings.} A run with no NUL terminator is over-read and can exhaust the budget,
+  after which the rest of the frame draws nothing (Property A, Section~\ref{sec:propA}).
+  This single mechanism explained an entire class of ``the bottom is cut off'' symptoms.
+
+  \item \textbf{Input is plain Win32 messages, no DirectInput.} That made a WndProc
+  subclass the clean way to capture keystrokes, far simpler than hooking the engine's
+  internal key path.
+
+  \item \textbf{The terminal has a built-in typewriter reveal and a real
+  \texttt{-{}-MORE-{}-} pager} (renderer ``case 5''). The line-shell mode reuses both;
+  the emulator deliberately disables the reveal by pinning the heads equal.
+
+  \item \textbf{Quake-style \texttt{\textasciicircum{}N} colour codes.} The width/measure
+  helper parses \ic{\textasciicircum N} inline colour escapes (0 width) --- a relic of the idTech
+  lineage, still live in the terminal's text path.
+
+  \item \textbf{White is the default palette slot (nibble 0), and it is visible.} An
+  early misreading held that there was ``no usable white''; in fact nibble 0 is the
+  game's native white. The confusion was an artefact of an unrelated bug hiding white
+  rows (Section~\ref{sec:errwhite}).
+
+  \item \textbf{A bug-compensation accidentally produced a feature.} The brightness-tracking
+  RGB$\rightarrow$ANSI mapping makes Claude Code's pulsing-orange ``thinking'' spinner
+  flip between red and yellow as it brightens --- a live shimmer the user specifically
+  wanted kept (Section~\ref{sec:shimmer}).
+
+  \item \textbf{32-bit process $\Rightarrow$ WOW64 redirection hides 64-bit tools.}
+  Because the game is 32-bit, a naive \texttt{cmd.exe} child sees
+  \texttt{System32} redirected to \texttt{SysWOW64}, hiding \texttt{ssh}/\texttt{scp}
+  (which exist only in the real \texttt{System32\textbackslash OpenSSH}). The fix is to
+  launch the native 64-bit shell via the \texttt{Sysnative} alias
+  (Section~\ref{sec:ssh}).
+\end{enumerate}
+
+\section{Errors encountered and how they were fixed}
+
+\subsection{First live test froze the game (non-unique signature)}
+The \texttt{line_commit} byte signature matched \textbf{ten} locations --- it was the
+compiler's generic \ic{(x \% 100) * 0x56} idiom on the line counter, which recurs across
+the terminal code. The scanner returned the first match, so the bridge called into the
+middle of an unrelated function as \ic{void(void)} and corrupted the stack.
+\textbf{Fix:} since ASLR is off, resolve \texttt{line_commit} by \textbf{RVA +
+prologue verification} (a guarded read that can never crash on a wrong address) instead
+of by pattern; keep unique signatures for the others.
+
+\subsection{Synchronous shell froze the engine thread}
+Running the shell synchronously inside the submit hook blocked the engine thread, so
+the renderer could not run; output came one command behind, with typewriter and pager
+glitches. \textbf{Fix:} move the shell to a \textbf{worker thread} and add a
+\textbf{per-frame pump} that drips a few output lines per frame, throttled so the
+100-row ring never overruns.
+
+\subsection{PowerShell buffering and padding}
+PowerShell block-buffers stdout to a pipe (output arrives a command behind) and pads
+lines with trailing spaces. \textbf{Fix:} use \texttt{cmd.exe} as the shell, which
+flushes immediately and does not pad.
+
+\subsection{Input-waiting commands hung the session}
+A command that reads stdin (\texttt{python}, \texttt{more}, \texttt{sort}, a bare REPL,
+or an unrecognised command dropping to a sub-prompt) blocked on the pipe and swallowed
+the end-of-output marker, so every later command read the previous command's output.
+\textbf{Fix:} append \ic{ <nul} to each command so input-waiters get immediate EOF; on a
+read timeout, mark the session desynced and drain the pipe before the next command.
+
+\subsection{cmd echoed piped commands; the marker false-matched}
+\texttt{cmd.exe} echoes every piped command line, and \texttt{echo off} hides only the
+prompt, not the line --- so the user saw their command reprinted, and the echoed
+\ic{echo <marker>} line contained the marker verbatim, causing the reader to latch onto
+the echo instead of real output. \textbf{Fix:} send the marker via a caret-escaped
+command so cmd echoes it \emph{with} the caret (no false match) while its output drops
+the caret (real match); then strip the echoed command line and any line containing the
+marker stem.
+
+\subsection{ConPTY never signalled EOF on child exit}
+The pseudoconsole keeps the output pipe's write end open, so \ic{read()} blocked forever
+after the child exited. \textbf{Fix:} do blocking reads on a dedicated reader thread and
+call \texttt{ClosePseudoConsole} on teardown to unblock it.
+
+\subsection{ConPTY child leaked to the parent console}
+A console-subsystem test harness let the child attach to the \emph{parent} console and
+write there instead of into the pty (the pipe got only the init burst).
+\textbf{Fix:} make the harness a \textbf{GUI-subsystem} process (as the game is), so the
+child has no parent console to attach to and must use the pty.
+
+\subsection{Visible height miscalibrated (20 vs 27 rows)}
+An early estimate put the visible area at ${\sim}20$ rows; a temporary row-number overlay
+showed rows 0--26 are all visible. At 20/24 rows, Claude Code's bottom-anchored input box
+fell below the rendered area. \textbf{Fix:} set \ic{kEmuRows = 27} (the full grid).
+
+\subsection{Terminal size detection stalled ${\sim}15$\,s}
+\label{sec:dsr}
+Claude Code rendered inconsistently with a ${\sim}15$\,s delay before first output. The
+tell was the delay: TUIs detect terminal size by emitting a query (\ic{ESC[6n} cursor
+report, often after \ic{ESC[999;999H}, and \ic{ESC[c} device attributes) and
+\emph{blocking} for the reply. The parser never replied, so the app timed out and
+fell back to a mis-detected size. \textbf{Fix:} a responder callback writes replies back
+to the pty --- DSR $\rightarrow$ \ic{ESC[<row>;<col>R} (which, after the app's
+\ic{ESC[999;999H}, clamps to the real 80$\times$27), DA $\rightarrow$ \ic{ESC[?1;2c}.
+
+\subsection{Eager line wrap caused drift and duplication (DECAWM)}
+\label{sec:decawm}
+The grid wrapped eagerly when the 80th column was written, producing an extra scroll;
+over a session this shifted the screen up, duplicated content, and scrolled the input
+box out of view (the ``can't see my input / doesn't scroll far enough'' symptom).
+\textbf{Fix:} implement \textbf{deferred wrap} (DECAWM) --- writing the last column sets
+\ic{wrapPending_}; the wrap happens only when the \emph{next} glyph arrives, and every
+cursor move / CR / LF / scroll-region / clear resets the flag. Verified offline by
+replaying captured pty logs through a host harness (\texttt{tools/feed_log.cpp}).
+
+\subsection{The big one: the bottom rows were culled}
+\label{sec:errvisible}
+The most stubborn bug: Claude Code's lower rows --- especially the input box ---
+did not render, even though the engine grid memory provably held the correct content
+and the draw loop iterates all 27 rows. A key diagnostic (a row-number overlay) showed
+only rows that previously held dense content rendered; sparse rows did not. A uniform
+``colour test'' that filled \emph{every} row with dense text rendered all 27 rows.
+
+The cause was \textbf{Property A} (Section~\ref{sec:propA}): the blit filled rows with
+spaces and \emph{never wrote a NUL}, so each colour run was read far past its row to the
+next stray NUL. Claude's mixed-colour rows produce many runs each; the top rows drained
+the shared vertex budget and every later run --- the bottom rows --- was dropped. The
+uniform test rendered because uniform rows are one run each and fit the budget. Earlier
+theories (the write head sitting too low; forcing \ic{written = shown = 27}) had
+\emph{no} effect and were removed. \textbf{Fix:} NUL-terminate each grid row after its
+last glyph, bounding every run to its own row.
+
+\subsection{Colour bled between segments}
+\label{sec:errcolour}
+With visibility fixed, colours were scrambled: borders and text took their neighbour's
+colour, with only boundary cells correct. This was \textbf{Property B}
+(Section~\ref{sec:propB}) --- runs coloured by their ending cell. \textbf{Fix:} the
+\textbf{filler scheme}: real colour only on a segment's last cell, interior cells set to
+the previous segment's colour so run boundaries align with segment ends; plus space
+colour propagation so one-cell borders become colourable two-cell segments. A lone
+one-cell colour segment with no adjacent space is the only residual imperfection ---
+rare in practice.
+
+\subsection{``No white'' misdiagnosis}
+\label{sec:errwhite}
+While chasing the visibility bug, body text (which is white) was invisible, leading to
+the wrong conclusion that the engine had no visible white, and a temporary
+``white $\rightarrow$ green'' hack. Once the real cause (Property A) was fixed, nibble 0
+was confirmed to be visible white --- the game's native default. \textbf{Fix:} drop the
+hack; map ANSI white $\rightarrow$ engine nibble 0 directly.
+
+\subsection{Logo and box were different colours}
+Claude's bright cream logo mapped to ``white'' while the box's deeper orange mapped to
+red, because the original \ic{rgbToAnsi8} used a flat per-channel \ic{>127} threshold that
+split one hue across buckets. \textbf{Fix:} split on \emph{saturation} --- low-saturation
+colours (the cream logo) map to white, while saturated colours pick a hue.
+
+\subsection{The spinner stopped shimmering}
+\label{sec:shimmer}
+The saturation fix above, in its first form, biased saturated oranges toward solid red,
+which flattened the ``thinking'' spinner's red$\leftrightarrow$yellow pulse. That pulse
+came from brightness: as the spinner brightens, its green channel crosses the threshold,
+flipping the quantised colour. \textbf{Fix:} keep the saturation gate (so the cream logo
+stays white) but use the per-channel \ic{>127} threshold for \emph{saturated} colours, so
+the brightening orange flips red$\leftrightarrow$yellow again while the static box orange
+stays red.
+
+\subsection{\texttt{ssh} ``not recognized''}
+\label{sec:ssh}
+\texttt{ssh} failed in the emulator shell. The first hypothesis --- a stale inherited
+PATH --- was wrong: rebuilding PATH from the registry actually \emph{broke} \texttt{claude}
+(it dropped the user PATH) and did not fix \texttt{ssh}. The real cause is
+\textbf{WOW64 file-system redirection}: the game is 32-bit, so launching \texttt{cmd.exe}
+yields the 32-bit cmd, inside which \texttt{C:\textbackslash Windows\textbackslash System32}
+is redirected to \texttt{SysWOW64}; \texttt{ssh}/\texttt{scp} live only in the real
+64-bit \texttt{System32\textbackslash OpenSSH}, so they are invisible. \textbf{Fix:}
+launch the native 64-bit cmd via the \texttt{Sysnative} alias
+(\ic{C:\textbackslash Windows\textbackslash Sysnative\textbackslash cmd.exe}), which a 32-bit process can use to reach the real
+\texttt{System32}; leave PATH untouched. The same change starts the shell in
+\ic{\%USERPROFILE\%} instead of the game's install folder (a new \ic{cwd} argument on the
+ConPTY session).
+
+\subsection{Development friction}
+Two recurring, non-product issues: (a) the DLL could not be rebuilt while the game held
+it loaded (linker \texttt{LNK1104}) --- the game must be closed before each build; and
+(b) chaining a \texttt{git commit} with a here-string under PowerShell failed, so commits
+were made through a POSIX shell.
+
+\section{Result and current state}
+
+Claude Code runs and renders correctly inside the Black Ops terminal: the welcome box,
+colours, box-drawing borders (as ASCII), the live red$\leftrightarrow$yellow ``thinking''
+spinner, scroll-back paging, and keyboard input all work; \texttt{ssh}, \texttt{python},
+and ordinary CLI tools run from a native 64-bit shell started in the user's home
+directory. All debug scaffolding has been removed. The reverse-engineering record lives
+in \texttt{notes/offsets.md} (the curated function/global table) and
+\texttt{notes/re-log.md} (the chronological log), backed by the raw decompiles in
+\texttt{notes/} and the re-runnable Ghidra scripts in \texttt{ghidra_scripts/}.
+
+The project demonstrates, end to end, that a modern interactive TUI can be hosted inside
+a 2010 game's hardcoded easter-egg terminal --- with no source, no symbols, and no
+graphics-API overlay --- purely by reverse engineering the engine's own text renderer
+and feeding it from a pseudoconsole.
+
+\end{document}
