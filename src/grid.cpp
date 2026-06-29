@@ -10,6 +10,7 @@ void Screen::init(int cols, int rows) {
     cells_.assign(static_cast<size_t>(cols_) * rows_, Cell{});
     cx_ = cy_ = 0;
     scx_ = scy_ = 0;
+    wrapPending_ = false;
     scrollTop_ = 0;
     scrollBot_ = rows_ - 1;
     color_ = scolor_ = kDefaultColor;
@@ -30,31 +31,34 @@ void Screen::clampCursor() {
 }
 
 // ---- cursor -----------------------------------------------------------------
-void Screen::gotoXY(int row, int col) { cy_ = row; cx_ = col; clampCursor(); }
-void Screen::cursorUp(int n)    { cy_ -= std::max(1, n); clampCursor(); }
-void Screen::cursorDown(int n)  { cy_ += std::max(1, n); clampCursor(); }
-void Screen::cursorLeft(int n)  { cx_ -= std::max(1, n); clampCursor(); }
-void Screen::cursorRight(int n) { cx_ += std::max(1, n); clampCursor(); }
-void Screen::columnAbsolute(int col) { cx_ = col; clampCursor(); }
-void Screen::rowAbsolute(int row)    { cy_ = row; clampCursor(); }
+// Any explicit cursor movement cancels a pending right-margin wrap.
+void Screen::gotoXY(int row, int col) { cy_ = row; cx_ = col; wrapPending_ = false; clampCursor(); }
+void Screen::cursorUp(int n)    { cy_ -= std::max(1, n); wrapPending_ = false; clampCursor(); }
+void Screen::cursorDown(int n)  { cy_ += std::max(1, n); wrapPending_ = false; clampCursor(); }
+void Screen::cursorLeft(int n)  { cx_ -= std::max(1, n); wrapPending_ = false; clampCursor(); }
+void Screen::cursorRight(int n) { cx_ += std::max(1, n); wrapPending_ = false; clampCursor(); }
+void Screen::columnAbsolute(int col) { cx_ = col; wrapPending_ = false; clampCursor(); }
+void Screen::rowAbsolute(int row)    { cy_ = row; wrapPending_ = false; clampCursor(); }
 void Screen::saveCursor()    { scx_ = cx_; scy_ = cy_; scolor_ = color_; }
-void Screen::restoreCursor() { cx_ = scx_; cy_ = scy_; color_ = scolor_; clampCursor(); }
+void Screen::restoreCursor() { cx_ = scx_; cy_ = scy_; color_ = scolor_; wrapPending_ = false; clampCursor(); }
 
 // ---- text -------------------------------------------------------------------
 void Screen::putChar(char c) {
-    if (cx_ >= cols_) {            // wrap
+    if (wrapPending_) {           // deferred wrap from the previous glyph
         cx_ = 0;
-        lineFeed();
+        lineFeed();               // (also clears wrapPending_)
     }
     Cell& cell = cells_[cy_ * cols_ + cx_];
     cell.ch = c;
     cell.color = color_;
-    ++cx_;
+    if (cx_ + 1 >= cols_) wrapPending_ = true;   // at right margin: defer the wrap
+    else ++cx_;
 }
 
-void Screen::carriageReturn() { cx_ = 0; }
+void Screen::carriageReturn() { cx_ = 0; wrapPending_ = false; }
 
 void Screen::lineFeed() {
+    wrapPending_ = false;
     if (cy_ >= scrollBot_) {
         scrollUp(1);              // at bottom of region -> scroll, cursor stays
     } else {
@@ -68,11 +72,12 @@ void Screen::reverseIndex() {
     else { --cy_; clampCursor(); }
 }
 
-void Screen::backspace() { if (cx_ > 0) --cx_; }
+void Screen::backspace() { if (cx_ > 0) --cx_; wrapPending_ = false; }
 
 void Screen::tab() {
     int next = (cx_ / 8 + 1) * 8;
     cx_ = std::min(next, cols_ - 1);
+    wrapPending_ = false;
 }
 
 // ---- erase ------------------------------------------------------------------
@@ -88,6 +93,7 @@ void Screen::eraseInDisplay(int mode) {
     if (mode == 2) {                      // whole screen + home
         for (int i = 0; i < cols_ * rows_; ++i) { cells_[i].ch = ' '; cells_[i].color = kDefaultColor; }
         cx_ = cy_ = 0;
+        wrapPending_ = false;
         return;
     }
     if (mode == 0) {                      // cursor..end
@@ -153,6 +159,7 @@ void Screen::setScrollRegion(int top, int bottom) {
     scrollTop_ = top;
     scrollBot_ = bottom;
     cx_ = 0; cy_ = scrollTop_;            // DECSTBM homes the cursor
+    wrapPending_ = false;
 }
 
 void Screen::scrollUp(int n) {

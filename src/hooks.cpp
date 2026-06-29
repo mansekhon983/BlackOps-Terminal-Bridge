@@ -151,6 +151,13 @@ vt::Parser*      g_parser = nullptr;
 std::thread      g_ptyReader;
 std::atomic<bool> g_ptyRunning{false};
 
+// TEMP debug: capture raw pty output to a file so we can see exactly what an app
+// (Claude Code) sends -- cursor moves, scroll regions, size queries.
+const bool   kLogPty     = false;   // flip to capture raw pty -> build/pty_log.bin for feed_log replay
+const size_t kPtyLogCap  = 512 * 1024;
+FILE*        g_ptyLog    = nullptr;
+size_t       g_ptyLogLen = 0;
+
 // ANSI colour index (0..15) -> engine palette high-nibble. Provisional, from the
 // E1 readout (2≈black 3=red 4=green 5=yellow 6=blue …); calibrated in-game.
 uint8_t ansiToEngine(uint8_t ansi) {
@@ -230,6 +237,9 @@ void emuReaderLoop() {
     while (g_ptyRunning.load()) {
         DWORD n = g_pty.read(buf, sizeof(buf));
         if (n == 0) break;                       // pty closed
+        if (g_ptyLog && g_ptyLogLen < kPtyLogCap) {
+            fwrite(buf, 1, n, g_ptyLog); fflush(g_ptyLog); g_ptyLogLen += n;
+        }
         std::lock_guard<std::mutex> lk(g_screen.mtx);
         if (g_parser) g_parser->feed(buf, static_cast<int>(n));
     }
@@ -247,6 +257,10 @@ void emuStart() {
         g_emuMode = false;
         return;
     }
+    if (kLogPty) {
+        g_ptyLog = fopen("C:\\Ghidra\\ghidra_projects\\build\\pty_log.bin", "wb");
+        g_ptyLogLen = 0;
+    }
     g_ptyRunning.store(true);
     g_ptyReader = std::thread(emuReaderLoop);
     logf("[emu] started ConPTY %dx%d\n", sig::grid_cols, kEmuRows);
@@ -257,6 +271,7 @@ void emuStop() {
     g_pty.stop();                       // unblocks the reader's blocking read()
     if (g_ptyReader.joinable()) g_ptyReader.join();
     delete g_parser; g_parser = nullptr;
+    if (g_ptyLog) { fclose(g_ptyLog); g_ptyLog = nullptr; }
     emuClear();
 }
 

@@ -1,0 +1,2082 @@
+================= key_handler FUN_0047eb90 @ 0047eb90 (FUN_0047eb90) =================
+callers:
+   <- 00569fc8  FUN_00569f70
+   <- 0058796d  FUN_00587500
+   <- 00587b6c  FUN_00587500
+
+void FUN_0047eb90(undefined4 param_1,int param_2,int param_3)
+
+{
+  undefined1 *puVar1;
+  char cVar2;
+  int iVar3;
+  uint uVar4;
+  char *pcVar5;
+  char *pcVar6;
+  uint uVar7;
+  
+  if (param_3 != 0) {
+    while ((param_2 != 3 && (param_2 != 0x1b))) {
+      if ((*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == (code *)&LAB_005444b0) ||
+         (*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == FUN_00622b10)) {
+        *(undefined4 *)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) = DAT_00bf44d4;
+        DAT_00bf44d4 = 0;
+        return;
+      }
+      if (param_2 == 0x7f) {
+        pcVar5 = &DAT_00bf8130;
+        do {
+          pcVar6 = pcVar5;
+          pcVar5 = pcVar6 + 1;
+        } while (*pcVar6 != '\0');
+        if ((int)(pcVar6 + -0xbf8130) < 1) {
+          return;
+        }
+        pcVar6[-1] = '\0';
+        puVar1 = &DAT_00bf569f + DAT_00bf812c;
+        DAT_00bf812c = DAT_00bf812c + -1;
+        *puVar1 = 0;
+        return;
+      }
+      if (param_2 == 0x9a) {
+        uVar7 = DAT_00bf4480 - 1;
+        if (DAT_00bf4484 <= (int)uVar7) {
+          pcVar5 = &DAT_00bf8130;
+          do {
+            pcVar6 = pcVar5;
+            pcVar5 = pcVar6 + 1;
+          } while (*pcVar6 != '\0');
+          DAT_00bf812c = DAT_00bf812c - (int)(pcVar6 + -0xbf8130);
+          iVar3 = DAT_00bf812c / 0x50 + 1;
+          FUN_00547970(iVar3,iVar3,DAT_00bf812c % 0x50 + 1,
+                       pcVar6 + -0xbf8130 + DAT_00bf812c % 0x50 + 1);
+          uVar4 = uVar7 & 0x80000007;
+          if ((int)uVar4 < 0) {
+            uVar4 = (uVar4 - 1 | 0xfffffff8) + 1;
+          }
+          pcVar5 = &DAT_00bf4ea0 + uVar4 * 0x100;
+          iVar3 = (int)&DAT_00bf8130 - (int)pcVar5;
+          DAT_00bf4480 = uVar7;
+          do {
+            cVar2 = *pcVar5;
+            pcVar5[iVar3] = cVar2;
+            pcVar5 = pcVar5 + 1;
+          } while (cVar2 != '\0');
+LAB_0047ec81:
+          FUN_004ef440(&DAT_00bf8130,1,1,0);
+        }
+      }
+      else if (param_2 == 0x9b) {
+        uVar7 = DAT_00bf4480 + 1;
+        if ((int)uVar7 <= DAT_00bf4e88) {
+          pcVar5 = &DAT_00bf8130;
+          do {
+            pcVar6 = pcVar5;
+            pcVar5 = pcVar6 + 1;
+          } while (*pcVar6 != '\0');
+          DAT_00bf812c = DAT_00bf812c - (int)(pcVar6 + -0xbf8130);
+          iVar3 = DAT_00bf812c / 0x50 + 1;
+          FUN_00547970(iVar3,iVar3,DAT_00bf812c % 0x50 + 1,
+                       pcVar6 + -0xbf8130 + DAT_00bf812c % 0x50 + 1);
+          uVar4 = uVar7 & 0x80000007;
+          if ((int)uVar4 < 0) {
+            uVar4 = (uVar4 - 1 | 0xfffffff8) + 1;
+          }
+          pcVar5 = &DAT_00bf4ea0 + uVar4 * 0x100;
+          iVar3 = (int)&DAT_00bf8130 - (int)pcVar5;
+          DAT_00bf4480 = uVar7;
+          do {
+            cVar2 = *pcVar5;
+            pcVar5[iVar3] = cVar2;
+            pcVar5 = pcVar5 + 1;
+          } while (cVar2 != '\0');
+          goto LAB_0047ec81;
+        }
+      }
+      else if ((param_2 == 0xd) || (param_2 == 0xbf)) {
+        FUN_00433720();
+        FUN_0055f800(param_1);
+        uVar7 = DAT_00bf4480 & 0x80000007;
+        pcVar5 = &DAT_00bf8130;
+        if ((int)uVar7 < 0) {
+          uVar7 = (uVar7 - 1 | 0xfffffff8) + 1;
+        }
+        do {
+          cVar2 = *pcVar5;
+          pcVar5[uVar7 * 0x100 + -0x3290] = cVar2;
+          pcVar5 = pcVar5 + 1;
+        } while (cVar2 != '\0');
+        iVar3 = DAT_00bf4480 + 1;
+        if (DAT_00bf4e88 < iVar3) {
+          DAT_00bf4e88 = iVar3;
+        }
+        if (DAT_00bf4484 < (int)(DAT_00bf4480 - 7)) {
+          DAT_00bf4484 = DAT_00bf4484 + 1;
+        }
+        if (*(undefined1 **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == &LAB_00674490) {
+          DAT_00bf4480 = iVar3;
+          return;
+        }
+        DAT_00bf4480 = iVar3;
+        _memset(&DAT_00bf8130,0,0x100);
+        return;
+      }
+      FUN_00403260(param_1,param_2,param_3);
+      if (param_2 != 1) {
+        return;
+      }
+      pcVar5 = &DAT_00bf8130;
+      do {
+        pcVar6 = pcVar5;
+        pcVar5 = pcVar6 + 1;
+      } while (*pcVar6 != '\0');
+      pcVar5 = (char *)FUN_0057ff80("ui_keyboard_focus_key");
+      if (0xfe < (int)(pcVar6 + -0xbf8130)) {
+        return;
+      }
+      FUN_00690210(param_1,0x3fe,0,0,0,0x3f800000,"uin_text_type_zork");
+      iVar3 = FUN_00552bf0(pcVar5,"SPACE");
+      if (iVar3 == 0) {
+        *pcVar6 = ' ';
+        FUN_004165b0(0x20,1,1);
+        return;
+      }
+      iVar3 = FUN_00552bf0(pcVar5,"ENTER");
+      if (iVar3 == 0) {
+        param_3 = 1;
+        param_2 = 0xd;
+      }
+      else {
+        iVar3 = FUN_00552bf0(pcVar5,&PTR_LAB_009b2f78);
+        if (iVar3 != 0) {
+          *pcVar6 = *pcVar5;
+          if ((*(code **)(&DAT_00bf4d58 + DAT_00bf8234 * 0x14) == FUN_005545e0) &&
+             (DAT_00bf4488 == 2)) {
+            FUN_004165b0(0x2a,1,1);
+            return;
+          }
+          FUN_004165b0(*pcVar5,1,1);
+          return;
+        }
+        param_3 = 1;
+        param_2 = 0x7f;
+      }
+    }
+    FUN_0042f3b0(param_1);
+  }
+  return;
+}
+
+
+
+================= dvar_getter FUN_0057ff80 @ 0057ff80 (FUN_0057ff80) =================
+callers:
+   <- 00406ae8  FUN_004069c0
+   <- 0047ed80  FUN_0047eb90
+   <- 00678ffa  FUN_00678f80
+   <- 0040cfe8  FUN_0040cde0
+   <- 0040cff6  FUN_0040cde0
+   <- 005ccbde  FUN_005ccba0
+   <- 00612b9f  FUN_00612b90
+   <- 0064e87b  FUN_0064e810
+   <- 007731d6  FUN_00773140
+   <- 0055de67  FUN_0055dcc0
+   <- 0055de86  FUN_0055dcc0
+   <- 0055df8d  FUN_0055dcc0
+   <- 0055dfac  FUN_0055dcc0
+   <- 005a6c0f  FUN_005a6bf0
+   <- 0061c6b5  FUN_0061c680
+   <- 00516f7e  FUN_00516f20
+   <- 004e6431  FUN_004e63c0
+   <- 005af165  FUN_005af0b0
+   <- 0061fa83  FUN_0061f5f0
+   <- 00622a8b  FUN_00622a70
+   <- 0082c6aa  FUN_0082c680
+   <- 0069845f  FUN_00698260
+   <- 0045cb5f  FUN_0045c7d0
+   <- 0045cb70  FUN_0045c7d0
+   <- 004207c9  FUN_00420240
+   <- 0053739c  FUN_00537380
+   <- 005373c8  FUN_00537380
+   <- 0055c547  FUN_0055c540
+   <- 0083f395  FUN_0083f2b0
+   <- 0083f3b4  FUN_0083f2b0
+   <- 00846bca  FUN_008469a0
+   <- 0084dfd5  FUN_0084df40
+   <- 0087d0cd  FUN_0087d030
+   <- 0087d2c8  FUN_0087d030
+   <- 00549ade  FUN_00549ac0
+   <- 004d2726  FUN_004d26c0
+   <- 006405aa  FUN_00640590
+   <- 0060c4f1  FUN_0060c4e0
+   <- 007e2f44  FUN_007e2f20
+   <- 007eebb9  FUN_007eebb0
+   <- 008913eb  FUN_00891350
+   <- 0089141a  FUN_00891350
+   <- 0089142b  FUN_00891350
+   <- 00891437  FUN_00891350
+   <- 00891460  FUN_00891350
+   <- 00574e1f  FUN_00574da0
+   <- 0047b8f8  FUN_0047b8f0
+   <- 004e280a  FUN_004e27f0
+   <- 004da91b  FUN_004da8e0
+   <- 0056fa4f  FUN_0056f8b0
+   <- 0056fad0  FUN_0056f8b0
+   <- 0056fb93  FUN_0056f8b0
+   <- 0056d491  FUN_0056d460
+   <- 0056d4af  FUN_0056d460
+   <- 0056d4c9  FUN_0056d460
+   <- 0058536a  FUN_005852c0
+   <- 005853f9  FUN_005852c0
+   <- 005855d5  FUN_005852c0
+   <- 0058587a  FUN_005852c0
+   <- 00585970  FUN_005852c0
+   <- 00585b1a  FUN_005852c0
+   <- 0062aeed  FUN_0062ae80
+   <- 0062af28  FUN_0062ae80
+   <- 005a1193  FUN_005a1170
+   <- 005c65d8  FUN_005c65d0
+   <- 0088f081  FUN_0088efd0
+   <- 0088fba4  FUN_0088fb80
+   <- 0066f78f  FUN_0066f710
+   <- 0053d1eb  FUN_0053d1a0
+   <- 0053d220  FUN_0053d1a0
+   <- 0053d23e  FUN_0053d1a0
+   <- 0053d25e  FUN_0053d1a0
+   <- 0083706c  FUN_00837060
+   <- 0067e067  FUN_0067e000
+   <- 0067e078  FUN_0067e000
+   <- 0084e673  FUN_0084e660
+   <- 0084e681  FUN_0084e660
+   <- 0084e288  FUN_0084e140
+   <- 005f874b  FUN_005f86a0
+   <- 0051e327  FUN_0051e280
+   <- 00445457  FUN_004452b0
+   <- 0044549b  FUN_004452b0
+   <- 004454c5  FUN_004452b0
+   <- 0062e2ca  FUN_0062e1d0
+   <- 00568cc4  FUN_00568c70
+   <- 007a36b9  FUN_007a3610
+   <- 007fad2e  FUN_007fad20
+   <- 00836bb9  FUN_00836b80
+   <- 00836bc8  FUN_00836b80
+   <- 00836c52  FUN_00836b80
+   <- 004efac0  FUN_004ef8f0
+   <- 0079f995  ?
+   <- 0079f9a7  ?
+   <- 0079f9d5  ?
+   <- 0079f9e7  ?
+   <- 0082a244  ?
+   <- 00836cdc  ?
+   <- 0087c5d0  ?
+   <- 00839e80  FUN_00839d70
+   <- 0083a160  FUN_00839d70
+   <- 0083a4be  ?
+   <- 0083a50f  ?
+   <- 0083b54c  FUN_0083b540
+   <- 00846ef2  ?
+   <- 00847012  ?
+   <- 00566f0a  FUN_00566f00
+   <- 00886401  ?
+   <- 0088642d  ?
+   <- 008510e5  ?
+   <- 008516fd  ?
+   <- 00859da2  ?
+   <- 00859f30  ?
+   <- 00859f41  ?
+
+undefined1 * FUN_0057ff80(char *param_1)
+
+{
+  int iVar1;
+  
+  if ((param_1 != (char *)0x0) && (*param_1 != '\0')) {
+    FUN_0068b370(param_1,0);
+    iVar1 = FUN_00862280();
+    if (iVar1 != 0) {
+      if (*(int *)(iVar1 + 0x10) != 6) {
+        return *(undefined1 **)(iVar1 + 0x18);
+      }
+      if (*(int *)(iVar1 + 0x58) != 0) {
+        return *(undefined1 **)(*(int *)(iVar1 + 0x5c) + *(int *)(iVar1 + 0x18) * 4);
+      }
+    }
+  }
+  return &DAT_009dd354;
+}
+
+
+
+================= caller(L1) @ 00569f70 (FUN_00569f70) =================
+callers:
+   <- 004a8b2d  FUN_004a8ae0
+   <- 004b3c08  FUN_004b3bd0
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_00569f70(int param_1,int param_2,int param_3,int param_4,int param_5,int param_6)
+
+{
+  int *piVar1;
+  undefined4 *puVar2;
+  byte bVar3;
+  bool bVar4;
+  uint uVar5;
+  int iVar6;
+  char cVar7;
+  int iVar8;
+  byte *pbVar9;
+  undefined4 uVar10;
+  int iVar11;
+  undefined4 extraout_ECX;
+  byte *pbVar12;
+  int extraout_EDX;
+  byte *pbVar13;
+  int iVar14;
+  char *pcVar15;
+  bool bVar16;
+  int iStack_414;
+  undefined1 auStack_400 [1024];
+  
+  bVar16 = param_4 == 1;
+  if ((param_4 == 1) || (param_4 == 2)) {
+    iVar11 = 1;
+  }
+  else {
+    iVar11 = 0;
+  }
+  if ((DAT_02910160 & 0x100) != 0) {
+    FUN_0047eb90();
+    return;
+  }
+  cVar7 = FUN_0079fd80();
+  iVar6 = DAT_02910164;
+  if (cVar7 == '\0') {
+    FUN_00587500();
+    return;
+  }
+  iVar14 = param_1 * 0x1128;
+  puVar2 = (undefined4 *)(&DAT_00c724c4 + iVar14 + extraout_EDX * 0x10);
+  *puVar2 = extraout_ECX;
+  if ((param_5 != 0) && ((((iVar6 == 1 || (iVar6 == 3)) || (iVar6 == 0)) || (iVar6 == 2)))) {
+    _DAT_00c71e04 = FUN_0062ef60();
+  }
+  if (bVar16) {
+    puVar2[1] = puVar2[1] + 1;
+    if (puVar2[1] == 1) {
+      *(int *)(&DAT_00c724c0 + iVar14) = *(int *)(&DAT_00c724c0 + iVar14) + 1;
+    }
+  }
+  else {
+    puVar2[1] = 0;
+    piVar1 = (int *)(&DAT_00c724c0 + iVar14);
+    *piVar1 = *piVar1 + -1;
+    if (*piVar1 < 0) {
+      *(undefined4 *)(&DAT_00c724c0 + iVar14) = 0;
+    }
+  }
+  if (((puVar2[2] == 0) || (iVar8 = FUN_00552bf0(puVar2[2],"devgui"), iVar8 != 0)) ||
+     ((!bVar16 || (puVar2[1] != 1)))) {
+    bVar4 = false;
+  }
+  else {
+    bVar4 = true;
+  }
+  cVar7 = FUN_00684eb0();
+  if ((cVar7 == '\0') && (bVar4)) {
+    if ((*(char *)(DAT_0243fdd4 + 0x18) != '\0') &&
+       (cVar7 = FUN_00466270(param_1,"menu_friends"), cVar7 == '\0')) {
+LAB_0056a123:
+      FUN_0049b930(param_1,"togglescores\n");
+      return;
+    }
+    if ((*(char *)(DAT_02910158 + 0x18) != '\0') &&
+       (cVar7 = FUN_00466270(param_1,"menu_friends"), cVar7 == '\0')) {
+      if ((*(char *)(DAT_0247fed0 + 0x18) == '\0') && (*(char *)(DAT_0290bf04 + 0x18) == '\0')) {
+        return;
+      }
+      goto LAB_0056a123;
+    }
+  }
+  uVar5 = DAT_02910160;
+  if (((DAT_02910160 & 8) == 0) || (!bVar16)) {
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 0;
+    if ((uVar5 & 0x10) == 0) {
+      iStack_414 = 0;
+    }
+    else {
+      iStack_414 = FUN_004369d0();
+    }
+    if ((iVar6 == 1) || (iVar6 == 3)) {
+      if (!bVar16) {
+        return;
+      }
+      if ((param_3 != 1) && (param_3 != 0xe)) {
+        return;
+      }
+      if (((DAT_02910160 & 0x10) != 0) && (iStack_414 != 0)) {
+        return;
+      }
+      FUN_004a2a70();
+      return;
+    }
+    if (((iVar11 != 0) && (cVar7 = FUN_0079fcf0(param_3,puVar2[1]), cVar7 != '\0')) &&
+       (param_4 != 2)) {
+      return;
+    }
+    if (((*(int *)(DAT_03023a54 + 0x18) != 0) && (*(char *)(DAT_0243fd3c + 0x18) != '\0')) &&
+       (cVar7 = FUN_00674400(param_3,bVar16), cVar7 != '\0')) {
+      return;
+    }
+    if (iStack_414 == 0xd) {
+      if ((bVar16) && (cVar7 = FUN_00674400(param_1,param_3), cVar7 != '\0')) {
+        return;
+      }
+      if (*(int *)(*(int *)(DAT_02ff5354 + 0x34) + 0x10) == 5) {
+        FUN_00403260(param_1,param_3,iVar11);
+        return;
+      }
+    }
+    else {
+      if (iStack_414 == 0xe) {
+        if (!bVar16) goto LAB_0056a433;
+        cVar7 = FUN_00674400(param_1,param_3);
+      }
+      else {
+        if ((iStack_414 != 0xf) || (!bVar16)) goto LAB_0056a433;
+        cVar7 = FUN_00674400(param_1,param_3);
+      }
+      if (cVar7 != '\0') {
+        return;
+      }
+    }
+LAB_0056a433:
+    iVar14 = 0;
+    do {
+      if (iVar14 == 0) {
+        pcVar15 = (char *)puVar2[2];
+      }
+      else {
+        pcVar15 = (char *)puVar2[3];
+      }
+      if (iVar11 == 0) {
+        if ((pcVar15 != (char *)0x0) && (*pcVar15 == '+')) {
+          if (param_6 != 0) {
+            iVar8 = FUN_004f3c70();
+            if (iVar8 == -1) {
+              iVar8 = param_2;
+            }
+            FUN_0068a0d0(iVar8,param_6);
+          }
+          FUN_00642b50(auStack_400,0x400,"-%s %i %i %0.3f\n",pcVar15 + 1,param_3,param_5);
+          FUN_0049b930(param_1,auStack_400);
+        }
+        if ((((DAT_02910160 & 0x10) == 0) || (DAT_02b10ca0 == 0)) || (iVar14 != 0)) {
+LAB_0056a5a5:
+          if (iVar14 == 1) {
+            return;
+          }
+        }
+        else {
+          FUN_00403260(param_1);
+        }
+      }
+      else if (((DAT_02910160 & 0x50) == 0) || (iStack_414 == 0xd)) {
+        if ((iVar6 != 0) && (iVar6 != 2)) {
+          if (pcVar15 == (char *)0x0) {
+            if (199 < param_3) {
+              uVar10 = FUN_004c54a0();
+              FUN_0043bf30(0xe,"%s is unbound, use controls menu to set.\n",uVar10);
+            }
+          }
+          else {
+            cVar7 = FUN_00569e80(param_1,param_3,pcVar15);
+            if (cVar7 != '\0') goto LAB_0056a5a5;
+            if (*pcVar15 == '+') {
+              if (param_6 != 0) {
+                uVar10 = FUN_004f3c70(param_1,param_6);
+                FUN_0068a0d0(uVar10);
+              }
+              FUN_00642b50(auStack_400,0x400,"%s %i %i %0.3f\n",pcVar15,param_3,param_5);
+              FUN_0049b930(param_1,auStack_400);
+            }
+            else {
+              iVar8 = FUN_00552bf0();
+              if (iVar8 != 0) {
+                FUN_0049b930();
+                FUN_0049b930(param_1,&DAT_009cf7a8);
+              }
+            }
+          }
+        }
+      }
+      else if ((DAT_02b10ca0 != 0) && (iVar14 == 0)) {
+        FUN_00403260(param_1);
+      }
+      iVar14 = iVar14 + 1;
+      if (1 < iVar14) {
+        return;
+      }
+    } while( true );
+  }
+  if (param_3 == 2) {
+LAB_0056a301:
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 6;
+    return;
+  }
+  pbVar9 = (byte *)puVar2[2];
+  if (pbVar9 != (byte *)0x0) {
+    pbVar13 = &DAT_009c1474;
+    pbVar12 = pbVar9;
+    do {
+      bVar3 = *pbVar12;
+      bVar16 = bVar3 < *pbVar13;
+      if (bVar3 != *pbVar13) {
+LAB_0056a190:
+        iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+        goto LAB_0056a195;
+      }
+      if (bVar3 == 0) break;
+      bVar3 = pbVar12[1];
+      bVar16 = bVar3 < pbVar13[1];
+      if (bVar3 != pbVar13[1]) goto LAB_0056a190;
+      pbVar12 = pbVar12 + 2;
+      pbVar13 = pbVar13 + 2;
+    } while (bVar3 != 0);
+    iVar11 = 0;
+LAB_0056a195:
+    if (iVar11 == 0) goto LAB_0056a301;
+  }
+  if (param_3 == 1) {
+LAB_0056a2e8:
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 1;
+    return;
+  }
+  if (pbVar9 != (byte *)0x0) {
+    pbVar13 = &DAT_00a132b8;
+    pbVar12 = pbVar9;
+    do {
+      bVar3 = *pbVar12;
+      bVar16 = bVar3 < *pbVar13;
+      if (bVar3 != *pbVar13) {
+LAB_0056a1e0:
+        iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+        goto LAB_0056a1e5;
+      }
+      if (bVar3 == 0) break;
+      bVar3 = pbVar12[1];
+      bVar16 = bVar3 < pbVar13[1];
+      if (bVar3 != pbVar13[1]) goto LAB_0056a1e0;
+      pbVar12 = pbVar12 + 2;
+      pbVar13 = pbVar13 + 2;
+    } while (bVar3 != 0);
+    iVar11 = 0;
+LAB_0056a1e5:
+    if (iVar11 == 0) goto LAB_0056a2e8;
+    if (pbVar9 != (byte *)0x0) {
+      pbVar13 = &DAT_009c87bc;
+      pbVar12 = pbVar9;
+      do {
+        bVar3 = *pbVar12;
+        bVar16 = bVar3 < *pbVar13;
+        if (bVar3 != *pbVar13) {
+LAB_0056a220:
+          iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+          goto LAB_0056a225;
+        }
+        if (bVar3 == 0) break;
+        bVar3 = pbVar12[1];
+        bVar16 = bVar3 < pbVar13[1];
+        if (bVar3 != pbVar13[1]) goto LAB_0056a220;
+        pbVar12 = pbVar12 + 2;
+        pbVar13 = pbVar13 + 2;
+      } while (bVar3 != 0);
+      iVar11 = 0;
+LAB_0056a225:
+      if (iVar11 == 0) {
+        *(undefined4 *)(&DAT_00c734c4 + iVar14) = 3;
+        return;
+      }
+      if (pbVar9 != (byte *)0x0) {
+        pbVar13 = &DAT_00a3f61c;
+        pbVar12 = pbVar9;
+        do {
+          bVar3 = *pbVar12;
+          bVar16 = bVar3 < *pbVar13;
+          if (bVar3 != *pbVar13) {
+LAB_0056a271:
+            iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+            goto LAB_0056a276;
+          }
+          if (bVar3 == 0) break;
+          bVar3 = pbVar12[1];
+          bVar16 = bVar3 < pbVar13[1];
+          if (bVar3 != pbVar13[1]) goto LAB_0056a271;
+          pbVar12 = pbVar12 + 2;
+          pbVar13 = pbVar13 + 2;
+        } while (bVar3 != 0);
+        iVar11 = 0;
+LAB_0056a276:
+        if (iVar11 == 0) {
+          *(undefined4 *)(&DAT_00c734c4 + iVar14) = 4;
+          return;
+        }
+        if (pbVar9 != (byte *)0x0) {
+          pbVar12 = &DAT_00a3ff18;
+          do {
+            bVar3 = *pbVar9;
+            bVar16 = bVar3 < *pbVar12;
+            if (bVar3 != *pbVar12) {
+LAB_0056a2c2:
+              iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+              goto LAB_0056a2c7;
+            }
+            if (bVar3 == 0) break;
+            bVar3 = pbVar9[1];
+            bVar16 = bVar3 < pbVar12[1];
+            if (bVar3 != pbVar12[1]) goto LAB_0056a2c2;
+            pbVar9 = pbVar9 + 2;
+            pbVar12 = pbVar12 + 2;
+          } while (bVar3 != 0);
+          iVar11 = 0;
+LAB_0056a2c7:
+          if (iVar11 == 0) {
+            *(undefined4 *)(&DAT_00c734c4 + iVar14) = 5;
+            return;
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+
+
+
+================= caller(L1) @ 00587500 (FUN_00587500) =================
+callers:
+   <- 00569ffc  FUN_00569f70
+   <- 0058948e  FUN_00589430
+
+void FUN_00587500(int param_1,int param_2,int param_3,undefined4 param_4)
+
+{
+  int *piVar1;
+  int *piVar2;
+  byte bVar3;
+  char *pcVar4;
+  int iVar5;
+  char cVar6;
+  int iVar7;
+  byte *pbVar8;
+  int iVar9;
+  undefined4 uVar10;
+  int iVar11;
+  byte *pbVar12;
+  byte *pbVar13;
+  uint uVar14;
+  bool bVar15;
+  undefined1 auStack_400 [1024];
+  
+  iVar11 = param_1 * 0x1128;
+  piVar2 = (int *)(&DAT_00c724c4 + param_2 * 0x10 + iVar11);
+  iVar7 = piVar2[2];
+  *piVar2 = param_3;
+  if (param_3 == 0) {
+    piVar2[1] = 0;
+    piVar1 = (int *)(&DAT_00c724c0 + iVar11);
+    *piVar1 = *piVar1 + -1;
+    if (*piVar1 < 0) {
+      *(undefined4 *)(&DAT_00c724c0 + iVar11) = 0;
+    }
+  }
+  else {
+    piVar2[1] = piVar2[1] + 1;
+    if (piVar2[1] == 1) {
+      *(int *)(&DAT_00c724c0 + iVar11) = *(int *)(&DAT_00c724c0 + iVar11) + 1;
+    }
+  }
+  if ((((param_2 == 0x60) || (param_2 == 0x7e)) || ((DAT_02910160 & 1) != 0)) ||
+     ((iVar7 == 0 || (iVar7 = FUN_00552bf0(iVar7,"devgui"), iVar7 != 0)))) {
+LAB_005875d2:
+    if ((param_3 != 0) && (1 < piVar2[1])) {
+      if ((DAT_02910160 & 0x121) == 0) {
+        if ((DAT_02910160 & 0x10) == 0) {
+          return;
+        }
+        switch(param_2) {
+        case 0x9a:
+        case 0x9b:
+        case 0xa3:
+        case 0xa4:
+          break;
+        default:
+          return;
+        }
+      }
+      if (param_2 == 0x60) {
+        return;
+      }
+      if (param_2 == 0x7e) {
+        return;
+      }
+      if (param_2 == 0x1b) {
+        return;
+      }
+    }
+  }
+  else if (param_3 != 0) {
+    if (piVar2[1] == 1) {
+      FUN_0049b930(param_1,piVar2[2]);
+      FUN_0049b930(param_1,&DAT_009cf7a8);
+      return;
+    }
+    goto LAB_005875d2;
+  }
+  iVar7 = DAT_02ff5354;
+  uVar14 = DAT_02910160;
+  if ((DAT_02910160 & 1) == 0) {
+    if (param_2 == 0xa5) {
+      if ((param_3 != 0) && (*(int *)(&DAT_00c72cb4 + iVar11) != 0)) goto LAB_00587633;
+    }
+    else {
+      if (param_2 == 0x60) {
+        return;
+      }
+      if (param_2 == 0x7e) {
+        return;
+      }
+    }
+  }
+  else if ((param_2 == 0x60) || (param_2 == 0x7e)) {
+    if (param_3 == 0) {
+      return;
+    }
+    if (*(int *)(&DAT_00c72ec4 + iVar11) != 0) {
+      cVar6 = FUN_004aae70(param_1);
+      if (cVar6 == '\0') {
+        FUN_00651a30();
+      }
+      FUN_005bf200();
+      return;
+    }
+LAB_00587633:
+    FUN_00651a30();
+    return;
+  }
+  if (((DAT_02910160 & 8) == 0) || (param_3 < 1)) {
+    if (((DAT_02910160 & 8) == 0) || ((param_3 != 0 || (*(int *)(&DAT_00c734c4 + iVar11) != 2)))) {
+      *(undefined4 *)(&DAT_00c734c4 + iVar11) = 0;
+    }
+    iVar5 = DAT_02910164;
+    if ((((param_3 != 0) && ((param_2 == 200 || (param_2 < 0x80)))) &&
+        (((3 < DAT_02910164 && (DAT_028f9f80 != 0)) || ((DAT_02910164 == 1 || (DAT_02910164 == 3))))
+        )) && (uVar14 == 0)) {
+      FUN_0044a2a0(DAT_0290bf58,&DAT_009dd354);
+      param_2 = 0x1b;
+      uVar14 = DAT_02910160;
+    }
+    if ((uVar14 & 0x10) == 0) {
+      iVar9 = 0;
+    }
+    else {
+      iVar9 = FUN_004369d0(param_1);
+      uVar14 = DAT_02910160;
+    }
+    if (param_2 == 0x1b) {
+      if (param_3 != 0) {
+        if ((uVar14 & 0x20) != 0) {
+          FUN_007a1000();
+          return;
+        }
+        if ((uVar14 & 1) != 0) {
+          FUN_0051b6b0();
+          uVar14 = DAT_02910160;
+        }
+        if ((uVar14 & 0x100) == 0) {
+          if ((uVar14 & 0x50) != 0) {
+            FUN_00403260(param_1,0x1b,param_3);
+            return;
+          }
+          switch(iVar5) {
+          case 1:
+          case 3:
+            FUN_004a2a70(param_1);
+            return;
+          default:
+            if (DAT_02b10ca0 != 0) {
+              FUN_00651d90(3,"Bad server address");
+            }
+            FUN_005852c0(param_1,2);
+            return;
+          case 4:
+          case 5:
+          case 6:
+            if (*(char *)(DAT_0243fd3c + 0x18) != '\0') {
+              return;
+            }
+            FUN_0043bf30(0xe,"Client cancelled connecting to server\n");
+            FUN_0041e6b0(param_1);
+            return;
+          case 10:
+            goto switchD_0058799e_caseD_a;
+          }
+        }
+        FUN_0047eb90(param_1,0x1b,param_3,param_4);
+        return;
+      }
+    }
+    else if (param_3 != 0) {
+      if ((uVar14 & 1) != 0) {
+        FUN_00511ee0(param_1,param_2);
+        return;
+      }
+      if ((uVar14 & 0x100) != 0) {
+        FUN_0047eb90(param_1,param_2,param_3,param_4);
+        return;
+      }
+      if ((((uVar14 & 0x50) == 0) || (cVar6 = FUN_007a0840(), uVar14 = DAT_02910160, cVar6 != '\0'))
+         || (cVar6 = FUN_007a08a0(param_2), uVar14 = DAT_02910160, cVar6 != '\0')) {
+        if ((uVar14 & 0x20) == 0) {
+          if (iVar5 == 0) {
+            FUN_00511ee0(param_1,param_2);
+          }
+          else {
+            pcVar4 = *(char **)(&DAT_00c724c4 + param_2 * 0x10 + 8 + iVar11);
+            if (pcVar4 == (char *)0x0) {
+              if (0xce < param_2) {
+                uVar10 = FUN_004c54a0(param_2,0);
+                FUN_0043bf30(0xe,"%s is unbound, use controls menu to set.\n",uVar10);
+              }
+            }
+            else if (*pcVar4 == '+') {
+              FUN_00642b50(auStack_400,0x400,"%s %i %i\n",pcVar4,param_2,param_4);
+              FUN_0049b930(param_1,auStack_400);
+            }
+            else {
+              FUN_0049b930(param_1,pcVar4);
+              FUN_0049b930(param_1,&DAT_009cf7a8);
+            }
+            pcVar4 = *(char **)(&DAT_00c724c4 + param_2 * 0x10 + iVar11 + 0xc);
+            if (pcVar4 == (char *)0x0) {
+              if (0xce < param_2) {
+                uVar10 = FUN_004c54a0(param_2,0);
+                FUN_0043bf30(0xe,"%s is unbound, use controls menu to set.\n",uVar10);
+              }
+            }
+            else if (*pcVar4 == '+') {
+              FUN_00642b50(auStack_400,0x400,"%s %i %i\n",pcVar4,param_2,param_4);
+              FUN_0049b930(param_1,auStack_400);
+            }
+            else {
+              FUN_0049b930(param_1,pcVar4);
+              FUN_0049b930(param_1,&DAT_009cf7a8);
+            }
+          }
+        }
+        else {
+          FUN_007a1000();
+        }
+      }
+      else {
+        if (iVar9 == 7) {
+          param_2 = 0x1b;
+        }
+        else if (iVar9 == 4) {
+          if (param_2 != 200) {
+            return;
+          }
+          FUN_005a5360();
+        }
+        FUN_007a0a00();
+        if (DAT_02b10ca0 != 0) {
+          FUN_00403260(param_1,param_2,param_3);
+        }
+      }
+      if (iVar7 == 0) {
+        return;
+      }
+      if ((*(int *)(iVar7 + 0x8a368) != 4) && ((*(byte *)(iVar7 + 0x8a378) & 2) == 0)) {
+        return;
+      }
+      FUN_007a0ac0();
+      return;
+    }
+    iVar11 = param_2 * 0x10 + iVar11;
+    pcVar4 = *(char **)(&DAT_00c724c4 + iVar11 + 8);
+    if ((pcVar4 != (char *)0x0) && (*pcVar4 == '+')) {
+      FUN_00642b50(auStack_400,0x400,"-%s %i %i\n",pcVar4 + 1,param_2,param_4);
+      FUN_0049b930(param_1,auStack_400);
+      uVar14 = DAT_02910160;
+    }
+    pcVar4 = *(char **)(&DAT_00c724c4 + iVar11 + 0xc);
+    if ((pcVar4 != (char *)0x0) && (*pcVar4 == '+')) {
+      FUN_00642b50(auStack_400,0x400,"-%s %i %i\n",pcVar4 + 1,param_2,param_4);
+      FUN_0049b930(param_1,auStack_400);
+      uVar14 = DAT_02910160;
+    }
+    if (((uVar14 & 0x10) != 0) && (DAT_02b10ca0 != 0)) {
+      FUN_00403260(param_1,param_2,param_3);
+      return;
+    }
+  }
+  else {
+    if (param_2 == 0x1b) {
+      *(undefined4 *)(&DAT_00c734c4 + iVar11) = 6;
+      return;
+    }
+    pbVar8 = (byte *)piVar2[2];
+    if (pbVar8 != (byte *)0x0) {
+      pbVar13 = &DAT_00a132b8;
+      pbVar12 = pbVar8;
+      do {
+        bVar3 = *pbVar12;
+        bVar15 = bVar3 < *pbVar13;
+        if (bVar3 != *pbVar13) {
+LAB_005876d3:
+          iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+          goto LAB_005876d8;
+        }
+        if (bVar3 == 0) break;
+        bVar3 = pbVar12[1];
+        bVar15 = bVar3 < pbVar13[1];
+        if (bVar3 != pbVar13[1]) goto LAB_005876d3;
+        pbVar12 = pbVar12 + 2;
+        pbVar13 = pbVar13 + 2;
+      } while (bVar3 != 0);
+      iVar7 = 0;
+LAB_005876d8:
+      if (iVar7 == 0) {
+        *(undefined4 *)(&DAT_00c734c4 + iVar11) = 1;
+        return;
+      }
+      if (pbVar8 != (byte *)0x0) {
+        pbVar13 = &DAT_009c1474;
+        pbVar12 = pbVar8;
+        do {
+          bVar3 = *pbVar12;
+          bVar15 = bVar3 < *pbVar13;
+          if (bVar3 != *pbVar13) {
+LAB_00587724:
+            iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+            goto LAB_00587729;
+          }
+          if (bVar3 == 0) break;
+          bVar3 = pbVar12[1];
+          bVar15 = bVar3 < pbVar13[1];
+          if (bVar3 != pbVar13[1]) goto LAB_00587724;
+          pbVar12 = pbVar12 + 2;
+          pbVar13 = pbVar13 + 2;
+        } while (bVar3 != 0);
+        iVar7 = 0;
+LAB_00587729:
+        if (iVar7 == 0) {
+          *(undefined4 *)(&DAT_00c734c4 + iVar11) = 6;
+          return;
+        }
+        if (pbVar8 != (byte *)0x0) {
+          pbVar13 = &DAT_009c87bc;
+          pbVar12 = pbVar8;
+          do {
+            bVar3 = *pbVar12;
+            bVar15 = bVar3 < *pbVar13;
+            if (bVar3 != *pbVar13) {
+LAB_00587760:
+              iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+              goto LAB_00587765;
+            }
+            if (bVar3 == 0) break;
+            bVar3 = pbVar12[1];
+            bVar15 = bVar3 < pbVar13[1];
+            if (bVar3 != pbVar13[1]) goto LAB_00587760;
+            pbVar12 = pbVar12 + 2;
+            pbVar13 = pbVar13 + 2;
+          } while (bVar3 != 0);
+          iVar7 = 0;
+LAB_00587765:
+          if (iVar7 == 0) {
+            *(undefined4 *)(&DAT_00c734c4 + iVar11) = 3;
+            return;
+          }
+          if (pbVar8 != (byte *)0x0) {
+            pbVar13 = &DAT_009e5360;
+            pbVar12 = pbVar8;
+            do {
+              bVar3 = *pbVar12;
+              bVar15 = bVar3 < *pbVar13;
+              if (bVar3 != *pbVar13) {
+LAB_005877b1:
+                iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+                goto LAB_005877b6;
+              }
+              if (bVar3 == 0) break;
+              bVar3 = pbVar12[1];
+              bVar15 = bVar3 < pbVar13[1];
+              if (bVar3 != pbVar13[1]) goto LAB_005877b1;
+              pbVar12 = pbVar12 + 2;
+              pbVar13 = pbVar13 + 2;
+            } while (bVar3 != 0);
+            iVar7 = 0;
+LAB_005877b6:
+            if (iVar7 == 0) {
+              *(undefined4 *)(&DAT_00c734c4 + iVar11) = 4;
+              return;
+            }
+            if (pbVar8 != (byte *)0x0) {
+              pbVar13 = &DAT_009cc554;
+              pbVar12 = pbVar8;
+              do {
+                bVar3 = *pbVar12;
+                bVar15 = bVar3 < *pbVar13;
+                if (bVar3 != *pbVar13) {
+LAB_00587802:
+                  iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+                  goto LAB_00587807;
+                }
+                if (bVar3 == 0) break;
+                bVar3 = pbVar12[1];
+                bVar15 = bVar3 < pbVar13[1];
+                if (bVar3 != pbVar13[1]) goto LAB_00587802;
+                pbVar12 = pbVar12 + 2;
+                pbVar13 = pbVar13 + 2;
+              } while (bVar3 != 0);
+              iVar7 = 0;
+LAB_00587807:
+              if (iVar7 != 0) {
+                pbVar12 = &DAT_009c2440;
+                do {
+                  bVar3 = *pbVar8;
+                  bVar15 = bVar3 < *pbVar12;
+                  if (bVar3 != *pbVar12) {
+LAB_00587832:
+                    iVar7 = (1 - (uint)bVar15) - (uint)(bVar15 != 0);
+                    goto LAB_00587837;
+                  }
+                  if (bVar3 == 0) break;
+                  bVar3 = pbVar8[1];
+                  bVar15 = bVar3 < pbVar12[1];
+                  if (bVar3 != pbVar12[1]) goto LAB_00587832;
+                  pbVar8 = pbVar8 + 2;
+                  pbVar12 = pbVar12 + 2;
+                } while (bVar3 != 0);
+                iVar7 = 0;
+LAB_00587837:
+                if (iVar7 != 0) {
+                  return;
+                }
+              }
+              *(undefined4 *)(&DAT_00c734c4 + iVar11) = 5;
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+  return;
+switchD_0058799e_caseD_a:
+  if (((*(int *)(DAT_0243fd0c + 0x18) == 0) &&
+      ((cVar6 = FUN_006da210(), cVar6 != '\0' || (cVar6 = FUN_006da230(), cVar6 != '\0')))) &&
+     (*(char *)(DAT_00c20838 + 0x18) != '\0')) {
+    return;
+  }
+  FUN_005852c0(param_1,3);
+  return;
+}
+
+
+
+================= caller(L2) @ 004a8ae0 (FUN_004a8ae0) =================
+callers:
+   <- 0086778e  FUN_00867600
+
+void FUN_004a8ae0(undefined4 param_1,undefined4 param_2,int param_3,undefined4 param_4,
+                 undefined4 param_5)
+
+{
+  char cVar1;
+  undefined4 uVar2;
+  
+  uVar2 = FUN_00477c10(param_1);
+  cVar1 = FUN_00509780(uVar2,0x10);
+  if (cVar1 != '\0') {
+    FUN_004a81c0(uVar2,param_2,param_3 == 1,param_4);
+  }
+  FUN_00569f70(uVar2,param_1,param_2,param_3,param_4,param_5);
+  return;
+}
+
+
+
+================= caller(L2) @ 004b3bd0 (FUN_004b3bd0) =================
+callers:
+   <- 0040337d  FUN_00403260
+   <- 0045d09b  FUN_0045c7d0
+   <- 004205ca  FUN_00420240
+   <- 004c288c  FUN_004c2860
+   <- 008822f7  FUN_008822d0
+   <- 00585332  FUN_005852c0
+   <- 005855aa  FUN_005852c0
+   <- 008683d7  FUN_008683d0
+   <- 00488aa2  ?
+   <- 00512658  ?
+
+void FUN_004b3bd0(int param_1)
+
+{
+  undefined4 uVar1;
+  int *piVar2;
+  int iVar3;
+  
+  *(undefined4 *)(&DAT_00c724c0 + param_1 * 0x1128) = 0;
+  piVar2 = (int *)(&DAT_00c724c4 + param_1 * 0x1128);
+  iVar3 = 0;
+  do {
+    if (*piVar2 != 0) {
+      uVar1 = FUN_004f3c70(param_1,iVar3,0,0,0);
+      FUN_00569f70(param_1,uVar1);
+    }
+    *piVar2 = 0;
+    piVar2[1] = 0;
+    iVar3 = iVar3 + 1;
+    piVar2 = piVar2 + 4;
+  } while (iVar3 < 0x100);
+  return;
+}
+
+
+
+================= caller(L2) @ 00569f70 (FUN_00569f70) =================
+callers:
+   <- 004a8b2d  FUN_004a8ae0
+   <- 004b3c08  FUN_004b3bd0
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_00569f70(int param_1,int param_2,int param_3,int param_4,int param_5,int param_6)
+
+{
+  int *piVar1;
+  undefined4 *puVar2;
+  byte bVar3;
+  bool bVar4;
+  uint uVar5;
+  int iVar6;
+  char cVar7;
+  int iVar8;
+  byte *pbVar9;
+  undefined4 uVar10;
+  int iVar11;
+  undefined4 extraout_ECX;
+  byte *pbVar12;
+  int extraout_EDX;
+  byte *pbVar13;
+  int iVar14;
+  char *pcVar15;
+  bool bVar16;
+  int iStack_414;
+  undefined1 auStack_400 [1024];
+  
+  bVar16 = param_4 == 1;
+  if ((param_4 == 1) || (param_4 == 2)) {
+    iVar11 = 1;
+  }
+  else {
+    iVar11 = 0;
+  }
+  if ((DAT_02910160 & 0x100) != 0) {
+    FUN_0047eb90();
+    return;
+  }
+  cVar7 = FUN_0079fd80();
+  iVar6 = DAT_02910164;
+  if (cVar7 == '\0') {
+    FUN_00587500();
+    return;
+  }
+  iVar14 = param_1 * 0x1128;
+  puVar2 = (undefined4 *)(&DAT_00c724c4 + iVar14 + extraout_EDX * 0x10);
+  *puVar2 = extraout_ECX;
+  if ((param_5 != 0) && ((((iVar6 == 1 || (iVar6 == 3)) || (iVar6 == 0)) || (iVar6 == 2)))) {
+    _DAT_00c71e04 = FUN_0062ef60();
+  }
+  if (bVar16) {
+    puVar2[1] = puVar2[1] + 1;
+    if (puVar2[1] == 1) {
+      *(int *)(&DAT_00c724c0 + iVar14) = *(int *)(&DAT_00c724c0 + iVar14) + 1;
+    }
+  }
+  else {
+    puVar2[1] = 0;
+    piVar1 = (int *)(&DAT_00c724c0 + iVar14);
+    *piVar1 = *piVar1 + -1;
+    if (*piVar1 < 0) {
+      *(undefined4 *)(&DAT_00c724c0 + iVar14) = 0;
+    }
+  }
+  if (((puVar2[2] == 0) || (iVar8 = FUN_00552bf0(puVar2[2],"devgui"), iVar8 != 0)) ||
+     ((!bVar16 || (puVar2[1] != 1)))) {
+    bVar4 = false;
+  }
+  else {
+    bVar4 = true;
+  }
+  cVar7 = FUN_00684eb0();
+  if ((cVar7 == '\0') && (bVar4)) {
+    if ((*(char *)(DAT_0243fdd4 + 0x18) != '\0') &&
+       (cVar7 = FUN_00466270(param_1,"menu_friends"), cVar7 == '\0')) {
+LAB_0056a123:
+      FUN_0049b930(param_1,"togglescores\n");
+      return;
+    }
+    if ((*(char *)(DAT_02910158 + 0x18) != '\0') &&
+       (cVar7 = FUN_00466270(param_1,"menu_friends"), cVar7 == '\0')) {
+      if ((*(char *)(DAT_0247fed0 + 0x18) == '\0') && (*(char *)(DAT_0290bf04 + 0x18) == '\0')) {
+        return;
+      }
+      goto LAB_0056a123;
+    }
+  }
+  uVar5 = DAT_02910160;
+  if (((DAT_02910160 & 8) == 0) || (!bVar16)) {
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 0;
+    if ((uVar5 & 0x10) == 0) {
+      iStack_414 = 0;
+    }
+    else {
+      iStack_414 = FUN_004369d0();
+    }
+    if ((iVar6 == 1) || (iVar6 == 3)) {
+      if (!bVar16) {
+        return;
+      }
+      if ((param_3 != 1) && (param_3 != 0xe)) {
+        return;
+      }
+      if (((DAT_02910160 & 0x10) != 0) && (iStack_414 != 0)) {
+        return;
+      }
+      FUN_004a2a70();
+      return;
+    }
+    if (((iVar11 != 0) && (cVar7 = FUN_0079fcf0(param_3,puVar2[1]), cVar7 != '\0')) &&
+       (param_4 != 2)) {
+      return;
+    }
+    if (((*(int *)(DAT_03023a54 + 0x18) != 0) && (*(char *)(DAT_0243fd3c + 0x18) != '\0')) &&
+       (cVar7 = FUN_00674400(param_3,bVar16), cVar7 != '\0')) {
+      return;
+    }
+    if (iStack_414 == 0xd) {
+      if ((bVar16) && (cVar7 = FUN_00674400(param_1,param_3), cVar7 != '\0')) {
+        return;
+      }
+      if (*(int *)(*(int *)(DAT_02ff5354 + 0x34) + 0x10) == 5) {
+        FUN_00403260(param_1,param_3,iVar11);
+        return;
+      }
+    }
+    else {
+      if (iStack_414 == 0xe) {
+        if (!bVar16) goto LAB_0056a433;
+        cVar7 = FUN_00674400(param_1,param_3);
+      }
+      else {
+        if ((iStack_414 != 0xf) || (!bVar16)) goto LAB_0056a433;
+        cVar7 = FUN_00674400(param_1,param_3);
+      }
+      if (cVar7 != '\0') {
+        return;
+      }
+    }
+LAB_0056a433:
+    iVar14 = 0;
+    do {
+      if (iVar14 == 0) {
+        pcVar15 = (char *)puVar2[2];
+      }
+      else {
+        pcVar15 = (char *)puVar2[3];
+      }
+      if (iVar11 == 0) {
+        if ((pcVar15 != (char *)0x0) && (*pcVar15 == '+')) {
+          if (param_6 != 0) {
+            iVar8 = FUN_004f3c70();
+            if (iVar8 == -1) {
+              iVar8 = param_2;
+            }
+            FUN_0068a0d0(iVar8,param_6);
+          }
+          FUN_00642b50(auStack_400,0x400,"-%s %i %i %0.3f\n",pcVar15 + 1,param_3,param_5);
+          FUN_0049b930(param_1,auStack_400);
+        }
+        if ((((DAT_02910160 & 0x10) == 0) || (DAT_02b10ca0 == 0)) || (iVar14 != 0)) {
+LAB_0056a5a5:
+          if (iVar14 == 1) {
+            return;
+          }
+        }
+        else {
+          FUN_00403260(param_1);
+        }
+      }
+      else if (((DAT_02910160 & 0x50) == 0) || (iStack_414 == 0xd)) {
+        if ((iVar6 != 0) && (iVar6 != 2)) {
+          if (pcVar15 == (char *)0x0) {
+            if (199 < param_3) {
+              uVar10 = FUN_004c54a0();
+              FUN_0043bf30(0xe,"%s is unbound, use controls menu to set.\n",uVar10);
+            }
+          }
+          else {
+            cVar7 = FUN_00569e80(param_1,param_3,pcVar15);
+            if (cVar7 != '\0') goto LAB_0056a5a5;
+            if (*pcVar15 == '+') {
+              if (param_6 != 0) {
+                uVar10 = FUN_004f3c70(param_1,param_6);
+                FUN_0068a0d0(uVar10);
+              }
+              FUN_00642b50(auStack_400,0x400,"%s %i %i %0.3f\n",pcVar15,param_3,param_5);
+              FUN_0049b930(param_1,auStack_400);
+            }
+            else {
+              iVar8 = FUN_00552bf0();
+              if (iVar8 != 0) {
+                FUN_0049b930();
+                FUN_0049b930(param_1,&DAT_009cf7a8);
+              }
+            }
+          }
+        }
+      }
+      else if ((DAT_02b10ca0 != 0) && (iVar14 == 0)) {
+        FUN_00403260(param_1);
+      }
+      iVar14 = iVar14 + 1;
+      if (1 < iVar14) {
+        return;
+      }
+    } while( true );
+  }
+  if (param_3 == 2) {
+LAB_0056a301:
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 6;
+    return;
+  }
+  pbVar9 = (byte *)puVar2[2];
+  if (pbVar9 != (byte *)0x0) {
+    pbVar13 = &DAT_009c1474;
+    pbVar12 = pbVar9;
+    do {
+      bVar3 = *pbVar12;
+      bVar16 = bVar3 < *pbVar13;
+      if (bVar3 != *pbVar13) {
+LAB_0056a190:
+        iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+        goto LAB_0056a195;
+      }
+      if (bVar3 == 0) break;
+      bVar3 = pbVar12[1];
+      bVar16 = bVar3 < pbVar13[1];
+      if (bVar3 != pbVar13[1]) goto LAB_0056a190;
+      pbVar12 = pbVar12 + 2;
+      pbVar13 = pbVar13 + 2;
+    } while (bVar3 != 0);
+    iVar11 = 0;
+LAB_0056a195:
+    if (iVar11 == 0) goto LAB_0056a301;
+  }
+  if (param_3 == 1) {
+LAB_0056a2e8:
+    *(undefined4 *)(&DAT_00c734c4 + iVar14) = 1;
+    return;
+  }
+  if (pbVar9 != (byte *)0x0) {
+    pbVar13 = &DAT_00a132b8;
+    pbVar12 = pbVar9;
+    do {
+      bVar3 = *pbVar12;
+      bVar16 = bVar3 < *pbVar13;
+      if (bVar3 != *pbVar13) {
+LAB_0056a1e0:
+        iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+        goto LAB_0056a1e5;
+      }
+      if (bVar3 == 0) break;
+      bVar3 = pbVar12[1];
+      bVar16 = bVar3 < pbVar13[1];
+      if (bVar3 != pbVar13[1]) goto LAB_0056a1e0;
+      pbVar12 = pbVar12 + 2;
+      pbVar13 = pbVar13 + 2;
+    } while (bVar3 != 0);
+    iVar11 = 0;
+LAB_0056a1e5:
+    if (iVar11 == 0) goto LAB_0056a2e8;
+    if (pbVar9 != (byte *)0x0) {
+      pbVar13 = &DAT_009c87bc;
+      pbVar12 = pbVar9;
+      do {
+        bVar3 = *pbVar12;
+        bVar16 = bVar3 < *pbVar13;
+        if (bVar3 != *pbVar13) {
+LAB_0056a220:
+          iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+          goto LAB_0056a225;
+        }
+        if (bVar3 == 0) break;
+        bVar3 = pbVar12[1];
+        bVar16 = bVar3 < pbVar13[1];
+        if (bVar3 != pbVar13[1]) goto LAB_0056a220;
+        pbVar12 = pbVar12 + 2;
+        pbVar13 = pbVar13 + 2;
+      } while (bVar3 != 0);
+      iVar11 = 0;
+LAB_0056a225:
+      if (iVar11 == 0) {
+        *(undefined4 *)(&DAT_00c734c4 + iVar14) = 3;
+        return;
+      }
+      if (pbVar9 != (byte *)0x0) {
+        pbVar13 = &DAT_00a3f61c;
+        pbVar12 = pbVar9;
+        do {
+          bVar3 = *pbVar12;
+          bVar16 = bVar3 < *pbVar13;
+          if (bVar3 != *pbVar13) {
+LAB_0056a271:
+            iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+            goto LAB_0056a276;
+          }
+          if (bVar3 == 0) break;
+          bVar3 = pbVar12[1];
+          bVar16 = bVar3 < pbVar13[1];
+          if (bVar3 != pbVar13[1]) goto LAB_0056a271;
+          pbVar12 = pbVar12 + 2;
+          pbVar13 = pbVar13 + 2;
+        } while (bVar3 != 0);
+        iVar11 = 0;
+LAB_0056a276:
+        if (iVar11 == 0) {
+          *(undefined4 *)(&DAT_00c734c4 + iVar14) = 4;
+          return;
+        }
+        if (pbVar9 != (byte *)0x0) {
+          pbVar12 = &DAT_00a3ff18;
+          do {
+            bVar3 = *pbVar9;
+            bVar16 = bVar3 < *pbVar12;
+            if (bVar3 != *pbVar12) {
+LAB_0056a2c2:
+              iVar11 = (1 - (uint)bVar16) - (uint)(bVar16 != 0);
+              goto LAB_0056a2c7;
+            }
+            if (bVar3 == 0) break;
+            bVar3 = pbVar9[1];
+            bVar16 = bVar3 < pbVar12[1];
+            if (bVar3 != pbVar12[1]) goto LAB_0056a2c2;
+            pbVar9 = pbVar9 + 2;
+            pbVar12 = pbVar12 + 2;
+          } while (bVar3 != 0);
+          iVar11 = 0;
+LAB_0056a2c7:
+          if (iVar11 == 0) {
+            *(undefined4 *)(&DAT_00c734c4 + iVar14) = 5;
+            return;
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+
+
+
+================= caller(L2) @ 00589430 (FUN_00589430) =================
+callers:
+   <- 0082c8c8  FUN_0082c850
+   <- 0082c97b  FUN_0082c850
+   <- 0082cc28  FUN_0082cc00
+
+void FUN_00589430(void)
+
+{
+  undefined8 *puVar1;
+  undefined4 uStack_38;
+  undefined4 uStack_34;
+  undefined4 uStack_30;
+  undefined4 uStack_2c;
+  void *pvStack_24;
+  undefined1 auStack_20 [28];
+  
+  do {
+    puVar1 = (undefined8 *)FUN_0068bb40(auStack_20);
+    uStack_34 = (undefined4)((ulonglong)*puVar1 >> 0x20);
+    uStack_30 = (undefined4)puVar1[1];
+    switch(uStack_34) {
+    case 0:
+      FUN_0082b290();
+      return;
+    case 1:
+      uStack_38 = (undefined4)*puVar1;
+      uStack_2c = (undefined4)((ulonglong)puVar1[1] >> 0x20);
+      FUN_00587500(0,uStack_30,uStack_2c,uStack_38);
+      break;
+    case 2:
+      FUN_004cec00(0,uStack_30);
+      break;
+    case 3:
+      pvStack_24 = (void *)((ulonglong)puVar1[2] >> 0x20);
+      FUN_00675a40(pvStack_24);
+      _free(pvStack_24);
+      break;
+    default:
+      FUN_00651d90(0,&DAT_009c58d0,uStack_34);
+    }
+  } while( true );
+}
+
+
+
+########## input-source indicators ##########
+009a3d94  "ERROR: Remove xmodel prefix from model name '%s'
+" <FUN_00877320@00877340>
+009a3e20  "Sending %i bytes in gamestate to client: %i
+" <FUN_00506320@00506aba>
+009a4278  "Current thread is not in thread table
+" <FUN_0056e7d0@0056e813>
+009a4370  "level_dependencies.csv" <FUN_0082ca20@0082ca50> <FUN_0082ca20@0082ca64>
+009a4b4c  "ERROR: line ended early after "visible"
+" <?@0084888e>
+009a61d0  "player_AimBlend_Back_Low" <FUN_0065e6b0@00660b03>
+009a635c  "mouseEnter" <?@00a5e198>
+009a6568  "WAD: Big-endian WAD on Small-endian machine
+" <FUN_008b4b00@008b4b97>
+009a76a8  "Bad cloud model." <FUN_0056cf80@0056cfbc>
+009a7ad4  "Unable to find the origin we sent, delta is not going to work" <FUN_0067b720@0067b9ab>
+009a7e38  "Invalid attachment name '%s' in table '%s'" <FUN_0076b3e0@0076b4be>
+009a864c  "mp/rankTable.csv" <FUN_0060e690@0060e698> <FUN_00512dc0@00512dd7>
+009a88f8  "KEY_ENTER" <?@00b734e8>
+009a89c8  "Incorrect number of parameters
+USAGE: setVolFog(<startDist>, <halfwayDist>, <halfwayHeight>, <baseHeight>, <red>, <green>, <blue>, <transition time>, <sun red>, <sun blue>, <sun green>, <sun dir X>, <sun dir Y>, <sun dir Z>, <sun start angle>, <sun end angle>, <max fog opacity>)
+" <FUN_00895340@00895363>
+009a9040  "ui_scrollMOTDDelay" <FUN_00835d00@00836510>
+009a9914  "hiddenDuringUI" <?@00a5dfb8>
+009a9974  "WARNING: "%s" is not a valid flametable file
+" <FUN_00460280@00460408>
+009a9c04  "cl_bypassMouseInput" <FUN_00590c10@00591153>
+009a9db8  "BG_AnimParseAnimScript: expected #END_FOR_ALL_VEHICLES, reached end of file" <FUN_00758bb0@0075994b> <FUN_00758bb0@00759578>
+009a9f5c  "tree_bend" <FUN_005da490@005da7a4>
+009aa5b4  "player_enduranceSpeedScale" <FUN_0065e6b0@0065fd0d>
+009aaa44  "checkgrenadelaunch: grenade launcher speed must be > 0" <FUN_007cc000@007cc05c>
+009aaa90  "Dyn Entity xmodel [%s] has no collision LOD set.
+" <FUN_007a80d0@007a8203>
+009aac18  "Unable to delete savegame: %s.svg
+" <FUN_005e9020@005e9101>
+009ab5c8  "@XBOXLIVE_LOBBYENDED" <FUN_00887550@008875ee>
+009ab790  "failed to link entity since parent model '%s' is invalid" <FUN_007f2380@007f250a>
+009ab8d8  "ERROR: File conflict (between non-iwd and iwd file) on xmodelsurfs '%s' for xmodel '%s'.
+Rename the export file to fix.
+" <FUN_008770f0@008771fb>
+009ab954  "%iendparty %s" <FUN_00887550@008875f5> <FUN_00887550@00887641> <FUN_005b5820@005b5866>
+009aba0c  "partyEnding" <?@00a601b8>
+009abb90  "DrawHudElemMaterial(): targetEnt %i not in snapshot, may not be a network-broadcasting entity." <FUN_0077aef0@0077afac>
+009abe0c  "print_table" <?@00ba0398>
+009ac128  "model" <FUN_006f2ce0@006f2d6c> <FUN_00548d60@00548d8f> <FUN_00488070@004883b5> <FUN_00488070@00488515> <FUN_00488070@00488703> <FUN_0043fb20@0043fd6a> <FUN_00694660@00694768> <FUN_004db040@004db246> <?@00a55690> <?@00a50328>
+009ac548  "focusFirst: no itemDefs in %s were selectable
+" <?@00844f12>
+009ac918  "getrecommendedplayercount" <?@00b7bbd4>
+009acad0  "ERROR: xmodelpieces '%s' has 0 length
+" <FUN_005c4640@005c46bc>
+009ada38  "%d vertices in xmodel '%s' exceeds maximum of %d, model will not render correctly on all platforms
+" <FUN_008768f0@008769ba>
+009adab0  "ERROR: xmodelsurfs '%s' out of date (version %d, expecting %d).
+" <FUN_008770f0@008771c8>
+009ae268  "STEAM: Calling RequestEncryptedAppTicket while there is already a pending request results in this error
+" <?@004fb712>
+009aec54  "ai_debugAnimDeltas" <FUN_007e1c10@007e25c5>
+009af118  "bg_shock_soundEnd" <FUN_0065e6b0@0066008d> <?@00b6cef0>
+009af538  "acceptFriend" <FUN_0045c7d0@0045c92f>
+009af7f0  "makeFakeAI must be applied to a script_model" <?@00610178>
+009afdc4  "Received stray endParty message
+" <?@00889524>
+009b04b4  "player_adsExitDelay" <FUN_0065e6b0@0065f6a9>
+009b0ca8  "MPUI_COMBAT_RECORD_LOCKED_FOR_FRIEND" <?@0085a408>
+009b0cf8  "ERROR: line ended early after "exp forecolor"
+" <?@0084a1e5>
+009b1670  "Could not load replacement model." <FUN_00462b80@00462bae>
+009b16a8  "onEnter" <FUN_00842d10@00842dde> <?@00a5e2f0> <?@0084987a>
+009b1740  "friendsonline" <?@00b7bad0>
+009b1760  "deltas = %g %g %g
+" <FUN_00683600@0068369d>
+009b1848  "bad escape character (%i) present in string" <FUN_007ef4f0@007ef516>
+009b1a18  "level_dependency_info" <FUN_0082ca20@0082ca4b>
+009b1b70  "Script spawning dyn ent with model with no physPreset %s
+" <FUN_0064a8a0@0064d497>
+009b1c58  "WARNING: vehicle '%s' is missing a required tag! switching to default vehicle model and info.
+" <FUN_00809ad0@00809b78>
+009b206c  "specialty_endurance" <?@00b6e018>
+009b26dc  "copy_table" <?@00ba0394>
+009b27b8  "failed to link entity since tag '%s' does not exist in parent model '%s'" <FUN_007f2380@007f2565>
+009b2cac  "WARNING: "%s" does not appear to be a flametable file
+" <FUN_00460280@00460363>
+009b34a8  "Insufficient space to fetch file %s
+" <?@0052d45d>
+009b34d0  "got endparty message from host
+" <?@008894db>
+009b39f0  "Couldn't find destroyed xmodel [%s] for Dyn Entity.
+" <FUN_007a80d0@007a8279>
+009b3c0c  "partyend_reason" <FUN_008878d0@00887b0b> <FUN_004af310@004af322> <FUN_0088d8c0@0088dc49> <FUN_0088d840@0088d870> <FUN_0065d0f0@0065d39d> <FUN_0065d0f0@0065d40b> <FUN_00434250@00434354>
+009b4348  "snd_realDelay" <FUN_00492a30@00492b0f>
+009b45fc  "render_actor_collision" <FUN_004756a0@00475d88>
+009b4628  "debugRenderColoredPatches" <FUN_004756a0@00475c57>
+009b4b08  "destroyedModel" <FUN_0043fb20@0043fdca>
+009b4df0  "^51 continuously copies your position to path start
+2 continuously copies your position to path goal
+3 doesn't change path start or path goal, but will still find a path
+4 continuously moves through the path simulating AI movement
+5 continuously moves through the path simulating AI movement, but continuously recalculates the path
+0 resets start and end and disables path finding
+While there are valid start and goal positions, it will find and draw a path
+" <FUN_0046b690@0046b6f8>
+009b56d4  "isDemoMovieRendering" <?@00b7bd2c>
+009b58e8  "ERROR: xmodelsurf '%s' not found
+" <FUN_008770f0@00877166>
+009b5c14  "ERROR: xmodelsurf '%s' has 0 length
+" <FUN_008770f0@00877181>
+009b6180  "Delay: %2.1f" <FUN_008163a0@0081664a>
+009b6b08  "WARNING: "%s" Is too long of a flametable file to parse (fileLength = %d identifierLength = %d)
+" <FUN_00460280@0046039c>
+009b6cb0  "debugRenderPlayerCollision" <FUN_0065e6b0@00660e45>
+009b6e90  "Destabilization angle for for WeapType %s must be between 0 and 45 degrees" <FUN_0076c600@0076c640>
+009b7020  "tableLookup" <FUN_00839d70@00839fc2>
+009b7124  "HINT_FRIENDLY" <?@00b75d08>
+009b77f8  "Warning: Pending Saves limit exceeded. Save %s ignored
+" <FUN_0043c850@0043c90a>
+009b783c  "script models considered for network" <?@00b755d4>
+009b78f0  "pos deltas" <FUN_005ea220@005ebc98>
+009b7f88  "friendlyNameSplitScreenFontSize" <FUN_004a3860@004a666c>
+009b804c  "bad model" <?@005e8d89>
+009b81c4  "g_useholdspawndelay" <FUN_005715e0@005719bc>
+009b8250  "USAGE: setTickerFriendMsgsBatchSize <no. of messages in a batch>
+" <?@004de236>
+009b82dc  "misc_model" <FUN_006f47e0@006f4a41> <FUN_006f47e0@006f4bc0> <FUN_004db040@004db0ec> <FUN_004db040@004db224> <FUN_0041d210@0041d21e> <?@00b7a3b4>
+009b8c88  "[%s] send %4i : s=%i fragment=%i,%i
+" <FUN_004de760@004de901>
+009b8fc0  "r_filmTweakMidEnd" <FUN_006ca1c0@006cc1a9>
+009b918c  "snd_boat_rpm_idle_end" <FUN_00492a30@00493944>
+009b9350  "=============================== END DVAR DUMP =====================================
+" <FUN_0044a9e0@0044aa64>
+009b9434  "missilePlantableSize" <FUN_0053c520@0053c94f>
+009b94a4  "endparty" <?@00a601d8>
+009b9a04  "	Solid BModel" <FUN_00463730@00463851>
+009b9b74  "hud_healthOverlay_phaseEnd_fromAlpha" <FUN_0052eb10@0052eeef>
+009b9f58  "BG_ParseConditionBits: unexpected end of condition" <FUN_007586b0@00758835>
+009ba404  "Unable to find our clientNum in PartyMigrate_ResendNominees!
+" <FUN_004686b0@004686d0>
+009ba444  "phys_impact_render" <FUN_0068a760@0068a803>
+009ba5a8  "SkipEpair: value '%s' ends with a '\'
+" <FUN_004dd220@004dd2c1>
+009baae0  "The server did not send us a config checksum but we have one (%i), (onlinegame is %s)(systemlink is %s)
+" <FUN_00573a10@00573a54>
+009bb018  "statstablelookup( %i, %s, %i ) == %s
+" <FUN_0085aea0@0085aff3>
+009bb714  "DESTRUCTABLE" <FUN_0061bf90@0061bfd4>
+009bc248  "player_breath_fire_delay" <FUN_0065e6b0@0065f451>
+009bc63c  "ERROR: no physics preset specified for the FX model [%s]
+" <FUN_005ecb60@005ecbe6>
+009bc7f4  "missing #endif" <FUN_00651730@00651791>
+009bc86c  "CL_SetViewAngles() - DELTA - (%3.0f, %3.0f, %3.0f)
+" <FUN_0049beb0@0049c218>
+009bcbe4  "dyn_brushmodel" <FUN_0043fb20@0043fd06> <FUN_007a6e50@007a6f09> <FUN_007a6f90@007a710f> <?@00b7a3bc> <?@00b74c84>
+009bcc94  "unexpected end of file found" <FUN_00438e00@00439058> <FUN_00438e00@0043a6bf>
+009bcd94  "snd_futz_blend" <FUN_00492a30@0049410a>
+009bd67c  "Insufficient space to decompress file %s
+" <?@0052d4c6>
+009bde00  "actionOnEnterPressOnly" <?@00a5e218>
+009be2e0  "Received stale nominee resend msg (indexBits are %i, ours are %i)
+" <FUN_0088d6d0@0088d7cf>
+009beab0  "centerofmass" <FUN_0043fb20@0044000a>
+009bf0d0  "cg_friendlyNameFadeOut" <FUN_004a3860@004a5e50>
+009bf48c  "declineFriend" <FUN_0045c7d0@0045c952>
+009bfa98  "unknown weapon '%s' in getWeaponModel
+" <FUN_007f0fb0@007f0fe7> <FUN_007877e0@00787817>
+009bfb38  "bg_shock_soundModEndDelay" <FUN_0065e6b0@00660416> <?@00b6cf18>
+009bfb54  "No notify space in sound queue.
+" <FUN_0050abd0@0050ac0b>
+009bfeec  "cg_laserLightEndOffset" <FUN_004a3860@004a5201>
+009c0354  "center_safearea" <?@00b75520> <?@00b7554c>
+009c061c  "ui_friendsListOpen" <FUN_00858520@00858592> <FUN_004afe00@004b00da> <FUN_005852c0@005857fd> <FUN_00644220@00644229>
+009c0bd4  "missing stringTable %s
+" <FUN_0062c3e0@0062c412>
+009c142c  "BD_SELF_FRIENDSHIP_NOT_ALLOWED" <?@00b7495c>
+009c1484  "inviteFriend" <FUN_0045c7d0@0045c9bb>
+009c1b54  "XDoll: Failed to model physPreset
+" <FUN_00820410@00820489>
+009c2118  "g_friendlyfireDist" <FUN_007e0c00@007e1771>
+009c21c0  "removeFriendsFromRecentPlayerList" <FUN_00522870@0052288b>
+009c2320  "Killing info_volume at (%f %f %f) because the brush model is invalid.
+" <FUN_0051e5a0@0051e5de>
+009c2638  "----- Initializing Renderer ----
+" <FUN_00590c10@00591a79> <FUN_00438560@00438563>
+009c26d0  "BULLET_PEN_TABLE" <FUN_0048c9a0@0048c9b9>
+009c319c  "xmodelpieces/%s" <FUN_005c4640@005c464f>
+009c3654  "Aborting LB_EndOngoingTasks...
+" <FUN_0044ab30@0044ab76>
+009c3774  "xmodelalias" <?@00b73c3c>
+009c3970  "hipViewKickCenterSpeed" <FUN_004ad2b0@004ad36d>
+009c4790  "usage: selectStringTableEntryInDvar <tableFileName> <columnNum> <dvarName>" <?@00577bb4>
+009c481c  "missileJavSpeedLimitDescend" <FUN_0053c520@0053c81c>
+009c4c18  "objective_friendly_chat" <FUN_0088e8c0@0088ea9e>
+009c4c68  "%3i:  delta: %i
+" <FUN_00402330@004023e4>
+009c4c9c  "player_AimBlend_Shoulder" <FUN_0065e6b0@00660c83>
+009c56b0  "sentient SetFriendlyChain <node>, where <none> is on a friendly chain.
+" <?@004d20ca>
+009c5b10  "CreateDynEntAndLaunch called with invalid params. CreateDynEntAndLaunch( <local client num>, <model>, <pos>, <angles>, <hitpos>, <force>, <fx>, <mature> )" <FUN_00557820@00557834>
+009c5ca8  "%d indicies in xmodel '%s' exceeds maximum of %d, model will not render correctly on all platforms
+" <FUN_008768f0@00876987>
+009c646c  "EV_RELOAD_END" <?@00b6cbec>
+009c66c4  "weaponDelayScale" <FUN_004469e0@004473d8>
+009c67e8  "ERROR: xmodelparts '%s' out of date (version %d, expecting %d).
+" <FUN_00875c60@00875d30>
+009c6ed4  "DW delete file error %i - '%s'
+" <?@005b3379>
+009c71ac  " bad escape character (%i) present in string" <?@0085bfc3>
+009c7430  "VIEWMODEL" <FUN_007968a0@007968ef>
+009c7ac4  "Failed to send message. You're doing it wrong.
+" <FUN_0068d8b0@0068d933>
+009c7eb4  "BG_CopyStringIntoBuffer: out of buffer space" <FUN_00758520@00758545>
+009c8058  "CanRenderClip() = %d
+" <?@008583b5>
+009c8150  "emblem_scroll_delay_first" <FUN_0079fcf0@0079fd08> <FUN_00835d00@0083670a>
+009c83b8  "flame_render" <FUN_005c4ba0@005c4bea>
+009c88e8  "%s: Delta request from out of date packet.
+" <FUN_004f2db0@004f2e54>
+009c8f0c  "g_deathDelay" <FUN_007e1c10@007e1e47>
+009c949c  "ui3d_hudelem_minheight" <FUN_00549de0@0054a41d>
+009c955c  "cg_hudFriendlyIndicatorHeight" <FUN_004a3860@004a4496>
+009c97c4  "BD_PENDING_FRIENDSHIP_EXISTS" <?@00b74964>
+009c9828  "GlassRenderer init: unused memory: %d
+" <FUN_0055b590@0055b72d>
+009c9984  "player_breath_snd_delay" <FUN_0065e6b0@0065f565>
+009c9f54  "Model" <?@00b74dd8>
+009c9fe8  "End: %s
+" <FUN_005d2089@005d20e1>
+009ca49c  "mp/classbonustable.csv" <FUN_0085b040@0085b0dc>
+009cad10  "SkipEpair: key '%s' ends with a '\'
+" <FUN_004dd220@004dd241>
+009cad98  "freeBuffersDelay" <FUN_0055b590@0055b99c>
+009cadcc  "perk_delayExplosiveTime" <FUN_005485f0@005488c1>
+009cb914  "debugRenderPatches" <FUN_004756a0@00475c28>
+009cbc00  "CHALLENGERESPONSE: Sending nonce %u, challengeNum %u to server
+" <FUN_00613060@00613225> <FUN_004ba160@004ba53c>
+009cbeac  "@XBOXLIVE_PARTYENDED" <FUN_00888da0@00888e67> <FUN_004af310@004af31d> <FUN_00887550@0088763b> <FUN_00887550@008877b3> <FUN_005f45e0@005f45ec> <FUN_0088d810@0088d830> <?@00888d71>
+009cbee0  "ui_scrollMOTDYOffsetResetDelay" <FUN_00835d00@00836545>
+009cc020  "selectStringTableEntryInDvar mp/didyouknow.csv 0 didyouknow" <?@005a1cef> <?@005a1cfd>
+009cc648  "ran out of trail verts in edElemDef->trailDef
+" <?@007b1ef3>
+009cccb0  "CMod_LoadSubmodels" <FUN_00820c00@00820c3c>
+009cdc24  "veh_dropdeployableend" <FUN_005ea220@005eb2aa>
+009cdc70  "selectedFriendClanTag" <FUN_00835d00@00836201>
+009cde44  "bg_shock_screenBlurBlendFadeTime" <FUN_0065e6b0@00660147> <?@00b6ced0>
+009ce494  "modelscale" <FUN_006f2ea0@006f2fa4> <FUN_005c8d20@005c8d42> <FUN_004db040@004db31b>
+009ce7ec  "DW_LOGON_GETFRIENDS
+" <FUN_005469a0@0054730a> <FUN_005469a0@0054728a>
+009ceca4  "
+Models:
+" <FUN_004582cc@004582cf>
+009cee9c  "angle deltas" <FUN_005ea220@005ebab2>
+009cf014  "Delta parseClientsNum too old.
+" <FUN_00885280@008853f1>
+009d05a0  "menu_systemlink_lobbyended" <FUN_0065d0f0@0065d3b5> <FUN_005852c0@00585a7a>
+009d150c  "misplaced #endif" <FUN_0049b720@0049b742>
+009d1de0  "Failed to resend the data even after rebuilding the connection
+" <FUN_0088bdf0@0088befc>
+009d2c50  "WARNING: Brushmodel without brushes '%s' (%.1f %.1f %.1f)
+" <?@004aab30>
+009d36a0  "tag_enter_gunner3" <FUN_005ea220@005eb656>
+009d37b4  "g_enteqDelay" <FUN_007e1c10@007e2b65>
+009d3f48  "ERROR: xmodel '%s' out of date (version %d, expecting %d).
+" <FUN_00875fa0@00875fbc>
+009d40d8  "Sending lobby info to %u.%u.%u.%u for partyId %i - challenge is %s
+" <FUN_005c7f50@005c7fa4>
+009d47e0  "hudElemPausedBrightness" <FUN_00549de0@0054a295>
+009d4ff0  "info/ai_lochit_dmgtable" <FUN_004e93d0@004e9448> <FUN_004e93d0@004e947f>
+009d5038  "centerview" <FUN_004bb4a0@004bb4aa> <FUN_00650ee0@00650ee0>
+009d5a8c  "BD_SEND_FAILED" <?@00b74844>
+009d5ad8  "MENU_FRIEND_REQUEST_RECEIVED" <FUN_00834920@00834ab4> <FUN_00834920@00834aaf>
+009d6b60  "KEY_TAB" <?@00b734e0>
+009d6ba4  "blend" <?@00b84f24>
+009d6fc0  "getstatforfriendorself" <?@00b7bc04>
+009d7244  "isFriendsListTrackerEnabled" <FUN_00644220@0064423c>
+009d7748  "UI Expression Error: Expected 4 params to function StringTableLookup, found %i
+" <FUN_0085ace0@0085ad43>
+009d7bd8  "party_vetoDelayTime" <FUN_00696210@00696588>
+009d7f1c  "isStableStatsBufferInitialized" <?@00b7bd0c>
+009d8444  "selectedFriendName" <FUN_0049e640@0049e688> <FUN_00835d00@008361e6>
+009d87d4  "tag_enter_passenger3" <FUN_005ea220@005eb613>
+009d8ce4  "OOB Packet is %i bytes - too large to send
+" <FUN_00472850@004728e0>
+009d9158  "Cannot set an animtree into an entity that has no model." <?@00789ad1>
+009d9454  "snd_boat_rpm_med_fin_end" <FUN_00492a30@00493a94>
+009da6a4  "user_center" <?@00b75528> <?@00b75554>
+009da6b0  "unknown escape char" <FUN_00635310@0063549e>
+009da958  "failed to attach model '%s' to tag '%s'" <?@0068353b>
+009da9e4  "ai_friendlySuppression" <FUN_007e0c00@007e1163>
+009dbac8  "Debug hudelems are not built into this exe" <FUN_00600bf0@00600bf2>
+009dbdb0  "snd_boat_rpm_low_fin_end" <FUN_00492a30@004939b4>
+009dbe38  "ui_browserFriendlyfire" <FUN_005f1520@005f1644>
+009dc594  "CM_CreateStaticModel" <FUN_004db040@004db139>
+009dc5f0  "ATabor" <?@00b7736c>
+009dc640  "cl_showSend" <FUN_00590c10@00590eed>
+009dc768  "saveDelay" <?@00a5de30>
+009dced8  "Failed to create database thread" <FUN_00405380@00405391>
+009dcefc  "%s : dropped gamestate, resending
+" <FUN_005158e0@005159c5>
+009dd374  "aim_slowdown_region_extended_height" <FUN_00755520@0075582f>
+009dd3e0  "spawnDelayMsec" <?@00a50138>
+009dd4b8  "Since we had an error reading their gamer profile, we're going to pretend that %s signed out of controller %i
+" <FUN_004d2e30@004d2ef1>
+009dd648  "ai_showFriendlyChains" <FUN_007e1c10@007e1ef7>
+009dd920  "player_AimBlend_Neck" <FUN_0065e6b0@00660c13>
+009ddf14  "ui_friendPendingSelectedInd" <FUN_005f1520@005f1720>
+009de0c8  "addToFeederExtended" <FUN_0067ec20@0067edc3>
+009de15c  "SetModel can only be called on a script mover
+" <?@00787a79>
+009de380  "The list of values is not properly comma delimited." <FUN_0089af30@0089b13a>
+009de5a0  "ERROR: Destructible file [%s] can not find bone [%s] in model [%s] for piece [%i] stage [%i]
+" <FUN_0058f570@0058f81e>
+009de854  "endofgame" <FUN_005852c0@00585446>
+009deab4  "iviteOrDeleteFriend" <FUN_0045c7d0@0045c898>
+009df400  "GetRenderSuccessMsg" <?@00b7c128>
+009df850  "entities considered for delta (NO_CLIENT and CLIENT_ONCE unset)" <?@00b755ac>
+009dfec8  "menu_friends" <FUN_00569f70@0056a0da> <FUN_00569f70@0056a0f7>
+009e0718  "selectStringTableEntryInDvar" <FUN_00590c10@0059189f>
+009e0b1c  "ui_scrollTextDelay" <FUN_00835d00@00836477>
+009e1374  "ENTER" <FUN_00508230@0050829f> <FUN_0047eb90@0047edc4> <FUN_004c54a0@004c5582> <?@00b73148> <FUN_00620480@00620546>
+009e13a0  "snd_boat_rpm_low_end" <FUN_00492a30@00493a24>
+009e1cac  "Failed to load level dependencies: Max is %d
+" <FUN_0082ca20@0082cadf>
+009e2104  "snd_boat_rpm_high_fin_end" <FUN_00492a30@00493b74>
+009e3044  "tag_enter_driver" <FUN_005ea220@005eb5e3>
+009e30ec  "fatal flex scanner internal error--end of buffer missed" <FUN_008ad380@008ad3a3>
+009e32c8  "failed to link entity since parent has no model" <FUN_007f2380@007f24e2>
+009e357c  "frontend" <FUN_008338f0@008338f0> <FUN_004f3ca0@004f3cdc> <FUN_00449e80@00449ec9> <FUN_004c8890@004c8907> <FUN_004c8890@004c8954> <FUN_004c8890@004c8a11> <FUN_005c6f70@005c6fa4> <FUN_005b5d60@005b5da5> <FUN_00684eb0@00684ed9> <FUN_004e27d0@004e27d6> <?@0062da1f> <?@0062da51> <?@0062daa5> <?@0062d9e2> <?@0062d9a1>
+009e3924  "Curves must always start at time 0 and end at time 1.
+" <FUN_007b10f0@007b12b1>
+009e3bd0  "snd_minigun_pitch_end" <FUN_00492a30@00493f26>
+009e3fd0  "Killing trigger_use_shared at (%f %f %f) because the brush model is invalid.
+" <FUN_007e8f10@007e8f57>
+009e48b8  "Usage: joinsession <friendName>
+" <FUN_00680f60@00680f79>
+009e4fa8  "cl_dblTapMaxDelayTime" <FUN_004bb4a0@004bbd82>
+009e5a54  "ET_SOUND_BLEND" <?@00b775f4>
+009e5b48  "CHALLENGERESPONSE: Sending bdOnlineUserID %llu to server
+" <FUN_00613060@0061314e> <FUN_004ba160@004ba446>
+009e5d20  "shellshock_end" <FUN_0065e6b0@00660088>
+009e6348  "g_friendlyNameDist" <FUN_007e0c00@007e1739>
+009e63e8  "selectedFriendIndex" <FUN_00835d00@0083623e>
+009e6adc  "codescripts/delete" <FUN_00408ee0@00408eec> <FUN_004f8240@004f8280> <FUN_00580370@00580389> <FUN_0059a230@0059a249> <FUN_006555a0@006555ec>
+009e6e7c  "delta compared script_model breakdown" <?@00b755b0>
+009e6f08  "menu_xboxlive_partyended" <FUN_008878d0@00887b20> <FUN_0088d8c0@0088dc5f> <FUN_0088d840@0088d886> <FUN_0065d0f0@0065d3c2> <FUN_0065d0f0@0065d415> <FUN_00434250@00434365>
+009e6f70  "MPUI_LB_FRIENDS_ONLY_CAPS" <?@00851246>
+009e72e4  "#END_IF" <FUN_00758bb0@00759004> <FUN_00758bb0@00759045> <FUN_00758bb0@007590f8> <FUN_00758bb0@00759135> <FUN_00758bb0@0075915f>
+009e7444  "Sending %s un-ack'd cmd %i: time: %i %s
+" <FUN_004a9e80@004a9f3a>
+009e77c8  "Unexpected end of info file
+" <FUN_005ef550@005ef66b>
+009e8f08  "canRenderClip" <?@00b7bfe4>
+009e9498  "TICKER_MESSAGE_CATEGORY_FRIENDS_CAPS" <FUN_00531870@0053189a>
+009e95e4  "ui_clanRecommendationCount" <FUN_00644220@0064436c>
+009e9778  "bg_shock_soundLoopEndDelay" <FUN_0065e6b0@0066035a> <?@00b6cf08>
+009e9ec8  "Rebuilt the secure connection after a WSAEHOSTUNREACH, trying to resend
+" <FUN_008890e0@0088919b>
+009ea6a0  "ui3d_hudelem_maxscale" <FUN_00549de0@0054a375>
+009eb108  "deleteFriend" <FUN_0045c7d0@0045c90c>
+009eb158  "out of operator space
+" <FUN_00572080@005724b6>
+009eb2e0  "Could not find global counter value as string table '%s' could not be found.
+" <FUN_00573e60@00573e89> <FUN_00539000@00539025>
+009eb768  "maxrecommendedplayers" <?@00b7bae4>
+009eb8c8  "emblem_scroll_delay_rest" <FUN_0079fcf0@0079fd12> <FUN_00835d00@00836729>
+009ebcc8  "ui_pendingSystemUIOpenEvent" <FUN_0051d1f0@0051d38d>
+009ebd8c  "player_AimBlend_Back_Mid" <FUN_0065e6b0@00660b4c>
+009ebe08  "end $init %d ms
+" <FUN_0082cd10@0082d2c4>
+009ec018  "Could not find a suitable weapon entity to free out of %i possible.  Using index zero.
+" <FUN_007df630@007df761>
+009ec208  "overrideNVGModelWithKnife" <FUN_004a3860@004a636d>
+009ed074  "debugRenderGjkTraceGeom" <FUN_004756a0@00475cf4>
+009ed250  " - models" <FUN_0088e8c0@0088ecef>
+009ed3c0  "found $ at end of line" <FUN_0061af80@0061afcd>
+009ed478  "SV_SendClientGameState() for %s
+" <FUN_00506320@005063eb>
+009ed840  "gpad_menu_scroll_delay_rest" <FUN_0079fcf0@0079fd23> <FUN_004ace60@004ad02a>
+009ed89c  "Expected 1 argument to setMapCenter()" <FUN_00804640@00804654>
+009ee300  "Sending smoke grenade that starts at %i and is at ( %f, %f, %f )
+" <FUN_004eb8b0@004ec017>
+009ee6d8  "friendlyNameFontColor" <FUN_004a3860@004a66b1>
+009eeaa8  "Failed to map player %s to a routable IP
+" <FUN_00887df0@0088835b>
+009eedf8  "Entity num: %i bits (delta)
+" <FUN_00541f90@00541fe5>
+009ef178  "Failed to send packet to %s
+" <FUN_0064eae0@0064eb68>
+009ef198  "com_recommendedSet" <FUN_0082cd10@0082ce7b>
+009ef814  "end_firing" <FUN_005ea220@005ea3fd>
+009ef8d8  "aim_slowdown_region_extended_width" <FUN_00755520@007557f7>
+009efa14  "#END_FOR_ALL_VEHICLES" <FUN_00758bb0@00759910> <FUN_00758bb0@00759958> <FUN_00758bb0@0075996f> <FUN_00758bb0@00759536> <FUN_00758bb0@00759585> <FUN_00758bb0@0075959c>
+009efc8c  "setRecommended" <FUN_00424ae0@00424c80> <FUN_0045c7d0@0045d49c>
+009efe18  "hudfriendlyfire" <FUN_0064f710@0064f9c5>
+009efee4  "hitloc damage table" <FUN_004e93d0@004e9443>
+009f0190  "EXE_MATCHENDED" <FUN_00678f80@00678fe3> <FUN_005a4010@005a4034> <?@006016aa>
+009f04dc  "Couldn't find xmodel [%s] for Dyn Entity.
+" <FUN_007a80d0@007a81cf>
+009f05b4  "Failed to resend the data, disconnecting from host
+" <FUN_008890e0@00889265>
+009f0d28  "^5USAGE: ai (!)target field (value), or ai (!) target [list/delete]
+" <FUN_007c17a0@007c17a1>
+009f13f0  "@EXE_GAMEISENDING" <?@00888c24>
+009f18f0  "ERROR: xmodelpieces '%s' out of date (version %d, expecting %d).
+" <FUN_005c4640@005c46fe>
+009f1e90  "uin_text_type_zork" <FUN_00508230@005083b8> <FUN_0047eb90@0047ed98>
+009f2308  "Radiant Live Update: Can't find misc_model.  Maps out of sync (Radiant/Game), re-bsp!
+" <FUN_005b38c0@005b3a00> <FUN_005c8d20@005c8e31>
+009f2493  "ipt_model" <FUN_00488070@004880f0> <FUN_00694660@006946c0>
+009f2640  "(pos deltas)" <?@00b74ffc>
+009f275c  "debugRenderMask" <FUN_004756a0@00475c76>
+009f2b4c  "xmodel" <FUN_004f9be0@004f9be7> <?@00b73bc4> <?@00b7a7c0>
+009f34cc  "tag_enter_gunner2" <FUN_005ea220@005eb643>
+009f37b4  "too large value in escape character" <FUN_00635310@00635472> <FUN_00635310@006354e5>
+009f3880  "dumpStaticModels" <FUN_004756a0@00475cde>
+009f4084  "friendlyNameFontGlowColor" <FUN_004a3860@004a66f0>
+009f46cc  "sound_blend" <FUN_005ea220@005eba62>
+009f4908  "BD_FRIENDSHIP_EXISTS" <?@00b74960>
+009f4938  "ERROR: Cannot find 'xmodelsurfs '%s'.
+" <FUN_00877270@008772cf>
+009f4998  "no model.
+" <FUN_0055e600@0055e61e>
+009f4e80  "debugRenderCollisionDistance" <FUN_004756a0@00475cb7>
+009f4fe4  "xaddfriend" <FUN_0046cb60@0046cd7b>
+009f557c  "g_taskEnd is now %i
+" <FUN_004ddea0@004de0c9> <FUN_004ddea0@004ddf8c>
+009f562c  "gpad_menu_scroll_delay_first" <FUN_004a81c0@004a81c7> <FUN_0079fcf0@0079fd19> <FUN_004ace60@004ad005>
+009f5a50  "shellshock_end_abort" <FUN_0065e6b0@006600a6>
+009f67c8  "var usage: %d, endon usage: %d
+" <FUN_00687f50@00688295>
+009f6b40  "cg_drawModelAxis" <FUN_004a3860@004a3e60>
+009f6bcc  "veh_firepickupend" <FUN_005ea220@005eb26a>
+009f6c04  "bg_blendTimeOverride" <FUN_0065e6b0@0065f06e>
+009f6ea8  "debugRenderBulletMeshes" <FUN_004756a0@00475bfc>
+009f72f4  "menu_xboxlive_lobbyended" <FUN_008878d0@00887b15> <FUN_004af310@004af32c> <FUN_0088d8c0@0088dc53> <FUN_0088d840@0088d87a> <FUN_0065d0f0@0065d3f0>
+009f7834  "swimming_end" <FUN_005ea220@005ebfc1> <FUN_0058a5c0@0058a9ab>
+009f7c58  "cl_serverStatusResendTime" <FUN_00590c10@0059113b>
+009f7fa4  "lb_minDelayBetweenLbReads" <FUN_004d9b20@004d9ce9> <FUN_0066f650@0066f660> <FUN_0047c580@0047c6bf>
+009f8064  "adsViewKickCenterSpeed" <FUN_004ad2b0@004ad342>
+009f8480  "center" <?@00b754e4> <?@00b7550c>
+009f8570  "skyboxmodel" <FUN_004a1590@004a171f>
+009f866c  "player_topDownCamCenterPos" <FUN_0065e6b0@006609bd>
+009f892c  "Got nominee resend request from invalid clientNum %i
+" <FUN_0088d6d0@0088d7f4>
+009f9130  "[%s] send->%u.%u.%u.%u (%4i bytes) : s=%i ack=%i
+" <FUN_004026e0@004028a2>
+009f9588  "ui_friendSelectedInd" <FUN_005f1520@005f16fe>
+009f95ec  "cg_laserEndOffset" <FUN_004a3860@004a523d>
+009f9984  "hiddenDuringFlashbang" <?@00a5dfb0>
+009f9b0c  "DelSavegame" <FUN_00420240@00420350>
+009fa4d8  "Killing trigger at (%f %f %f) because the brush model is invalid.
+" <FUN_005fe870@005fe8bd> <FUN_004354b0@004354ee>
+009fb7c8  "WARNING: actor model '%s' couldn't be found! switching to default actor model.
+" <FUN_004d0620@004d0667> <FUN_007ecb50@007ed2ec>
+009fb8a8  "Extended form instruction found, ABORT!!!
+" <FUN_00516550@0051656c>
+009fbcc4  "friends" <FUN_005b4ec0@005b5247>
+009fd968  "ui_keyboard_focus_key" <FUN_0047eb90@0047ed79>
+009fdae4  "MENU_FRIEND_REQUEST_PENDING" <FUN_00834920@00834ab4> <FUN_00834920@00834aa6>
+009fe00c  "Backend returned %i results
+" <FUN_004e9530@004e95e2>
+009fe4c4  "center_shot" <?@00b858cc>
+009fe880  "CMod_LoadSubmodelBrushNodes" <FUN_00821790@008217e9>
+009fed1c  "end time must be between 0 and 1" <FUN_007fcc50@007fcca6> <FUN_007fcd40@007fcd96>
+009feda0  "spawndynent, failed to spawn %s dyn ent because no physPreset is specified in the xmodel GDT." <FUN_00895d90@00895ddd>
+009fee14  "end of file inside menu
+" <FUN_0084c6f0@0084c7ce>
+009ff6f4  "veh_usespecialabilityend" <FUN_005ea220@005eb24a>
+009ffa50  "Couldn't find friend %s
+" <FUN_0058f390@0058f476>
+00a0105c  "suppression_end" <FUN_005ea220@005ea7e9>
+00a01094  "angle_deltas" <?@00b75000>
+00a01370  "Trying to spawn %s at position (%0.2f, %0.2f, %0.2f) will place it outside of map ranges that can be sent across the network.
+ Which given a map center (%0.2f, %0.2f, %0.2f) should be between (%0.2f, %0.2f, %0.2f) to (%0.2f, %0.2f, %0.2f)
+" <FUN_004acd50@004ace43>
+00a01718  "Debug rendering for xformed brushes is not supported at the moment
+" <FUN_0055fbb0@0055fbf4>
+00a017c0  "deleteFavorite" <FUN_0045c7d0@0045d219>
+00a0246e  "earalltextafterhudelem" <FUN_0040fce0@0040fcfa>
+00a03130  "JDelgado" <?@00b773f4>
+00a03698  "physicsmodel" <FUN_0043fb20@0043fe2a>
+00a03934  "Failed to send instant message. You're doing it wrong.
+" <FUN_00477c40@00477cbd>
+00a03a90  "notselectable" <?@00a5e070>
+00a03dec  "FS_FOpenFileAppend: %s
+" <FUN_00442b20@00442b5d>
+00a03e04  "ui_friendNameNew" <FUN_005f1520@005f16dc>
+00a03e6c  "sendRequestFriend" <FUN_0045c7d0@0045c8c6>
+00a04450  "tag_enter_back" <FUN_005ea220@005eb696>
+00a04d18  "extended" <?@00ba0310>
+00a04df0  "player_AimBlend_Pelvis" <FUN_0065e6b0@00660bd4>
+00a04f50  "bullet penetration table" <FUN_0048c9a0@0048c9be>
+00a04f6c  "spawndynent, failed to find model %s." <FUN_00895d90@00895db6>
+00a05be0  "The numerical space defined by range/precision combination is too large. No compression performed.
+" <FUN_00664470@006644a7>
+00a05cdc  "ERROR: xmodel piece '%s' missing from pieces model 's%'
+" <FUN_005c4640@005c4841>
+00a066b4  "viewmodel_" <FUN_0063b1b0@0063b29f>
+00a06984  "LOCDMGTABLE" <FUN_004e93d0@004e943e>
+00a06b28  "CA_SENDINGSTATS" <?@00b7a410> <?@00b7a444> <?@00b73ae8> <?@00b73b1c> <?@00b73b50> <?@00b7b76c> <?@00b7b7a0> <?@00b7b7d4> <?@00b7b810> <?@00b84d9c> <?@00b84dd0> <?@00b84e04> <?@00b84e38> <?@00b84e6c> <?@00b84ea0> <?@00b84040> <?@00b84074> <?@00b840a8> <?@00b840dc> <?@00b84110> <?@00b738c8> <?@00b738fc> <?@00b73930> <?@00b73964> <?@00b73998> <?@00b739cc> <?@00b73a18> <?@00b7510c> <?@00b75408> <?@00b72f28> <?@00b83f08> <?@00b7e924> <?@00b779e8> <?@00b74ae8> <?@00b77a44> <?@00b7b500> <?@00b86cc8> <?@00b7a814> <?@00b83f40> <?@00b84f7c> <?@00b7ef30> <?@00b7ef64> <?@00b7768c> <?@00b6c0a0> <?@00b6c0d8> <?@00b6c9a8> <?@00b6cb30> <?@00b713e0> <?@00b714e0> <?@00b71518> <?@00b71860> <?@00b718d0> <?@00b7195c> <?@00b71990> <?@00b719c4> <?@00b71a00> <?@00b71bf0> <?@00b71c7c> <?@00b71ccc> <?@00b71d14> <?@00b71d70> <?@00b72580> <?@00b725fc> <?@00b727a4> <?@00b727e0> <?@00b72878> <?@00b72bf0> <?@00b72ed8> <?@00b72f68> <?@00b72fb8> <?@00b72fec> <?@00b73020> <?@00b73054> <?@00b73128> <?@00b73ee0> <?@00b7451c> <?@00b74550> <?@00b74584> <?@00b745b8> <?@00b745ec> <?@00b74620> <?@00b7467c> <?@00b746f8> <?@00b74734> <?@00b747b8> <?@00b747ec> <?@00b74820> <?@00b74d48> <?@00b74f00> <?@00b75148> <?@00b75258> <?@00b75298> <?@00b752d4> <?@00b75308> <?@00b7533c> <?@00b75374> <?@00b75588> <?@00b75c74> <?@00b75cbc> <?@00b75d80> <?@00b75e28> <?@00b75e60> <?@00b77430> <?@00b77580> <?@00b775c0> <?@00b77720> <?@00b79370> <?@00b79c20> <?@00b7a37c> <?@00b7a4b8> <?@00b7a510> <?@00b7a550> <?@00b7a73c> <?@00b7a854> <?@00b7a898> <?@00b7abb0> <?@00b7abe4> <?@00b7ac18> <?@00b7ac50> <?@00b7ada8> <?@00b7ade0> <?@00b7ae98> <?@00b7b18c> <?@00b7b1c0> <?@00b7b1f4> <?@00b7b228> <?@00b7b42c> <?@00b7b464> <?@00b7b498> <?@00b7b4cc> <?@00b7b568> <?@00b7b610> <?@00b7b644> <?@00b7b68c> <?@00b7b6c0> <?@00b7b734> <?@00b7b910> <?@00b7dac8> <?@00b7e3b4> <?@00b7ef9c> <?@00b7efd0> <?@00b7f0b0> <?@00b7f198> <?@00b7f1cc> <?@00b7f200> <?@00b7f23c> <?@00b7f274> <?@00b7f2ac> <?@00b7f2e4> <?@00b7f320> <?@00b7f748> <?@00b7fb70> <?@00b83c60> <?@00b83c98> <?@00b83d30> <?@00b83d64> <?@00b83d9c> <?@00b83dd0> <?@00b83e04> <?@00b83e38> <?@00b83e6c> <?@00b83ea0> <?@00b83ed4> <?@00b84548> <?@00b8457c> <?@00b845b0> <?@00b845e4> <?@00b84618> <?@00b8464c> <?@00b846b8> <?@00b846ec> <?@00b84720> <?@00b84798> <?@00b847f8> <?@00b84830> <?@00b84930> <?@00b84970> <?@00b84c80> <?@00b84cf8> <?@00b84d2c> <?@00b84d60> <?@00b862cc> <?@00b86380> <?@00b8650c> <?@00b86540> <?@00b86574> <?@00b865a8> <?@00b865e4> <?@00b86618> <?@00b86668> <?@00b86810> <?@00b86990> <?@00b869c4> <?@00b869f8> <?@00b86a2c> <?@00b86a64> <?@00b86a9c> <?@00b86ad0> <?@00b86b10> <?@00b86e68> <?@00b8d9e0> <?@00b8da2c> <?@00b8dc34> <?@00b8dc80> <?@00b8dd94> <?@00b8ddcc> <?@00b8de00> <?@00b8de34> <?@00b9f480> <?@00b9f508> <?@00b9f60c> <?@00b9f750> <?@00b9f7c8> <?@00b9f860>
+00a0704c  "cg_viewModelArray" <FUN_005334d0@00533584>
+00a07108  "Backend" <?@00b7a94c>
+00a07154  "hiddenDuringScope" <?@00a5dfa8>
+00a07430  "It would take %ims to send %i bytes to client %s (rate %i)
+" <FUN_0087f3e0@0087f45f> <FUN_0087f480@0087f4e9>
+00a083f4  "ui_recommendedCountNotZero" <FUN_00644220@0064440e>
+00a0854c  "Global counter string table '%s' had no values.
+" <FUN_00539000@0053905e>
+00a08760  "heatMapLoadDelay" <FUN_004e14f0@004e16d6>
+00a08774  "BD_CONTENTSTREAMING_NOT_ENOUGH_DOWNLOAD_BUFFER_SPACE" <?@00b749f0>
+00a08889  "LAMETABLEFILE" <FUN_00460280@0046028f> <FUN_00460280@00460292>
+00a08c54  "hudelem string" <FUN_00779980@00779a94> <FUN_00779030@0077903a>
+00a090dc  "isrecommendedplayerinvitable" <?@00b7be04>
+00a09168  "statstablelookup" <?@00b7ba8c>
+00a09d80  "UI Expression Error: Expected 4 parameters to getSortedStatsForFriendOrSelf()
+" <FUN_00859800@00859823>
+00a0a9e8  "1op_end" <?@00ba02d0>
+00a0ad78  "BG_AnimParseAnimScript: expected #END_IF, reached end of file" <FUN_00758bb0@00759038> <FUN_00758bb0@00759128>
+00a0ae68  "flameVar_lastFlameTable" <FUN_005c4ba0@005c4d17>
+00a0ae80  "ai_friendlyFireBlockDuration" <FUN_007e0c00@007e11c0>
+00a0aee4  "sendingstats" <FUN_005ea220@005ebf3e>
+00a0b4bc  "BG_AnimParseAnimScript: expected '=', found end of line" <FUN_00758bb0@00758ed2>
+00a0b758  "player_AimBlend_Head" <FUN_0065e6b0@00660c4c>
+00a0be6c  "flame_debug_render" <FUN_005c4ba0@005c4c27>
+00a0c154  "Delta from invalid frame (not supposed to happen!).
+" <FUN_00885280@0088536b>
+00a0c338  "Sending steam auth request to client <%llx>, fail count is now %i
+" <FUN_006165a0@00616682>
+00a0d018  "MemFile_EndSegment: Out of memory" <FUN_00653160@0065318a> <FUN_00653160@00653199> <FUN_00865d30@00865d5f> <FUN_00865d30@00865d6e>
+00a0d6ac  "ERROR: Cannot find xmodelparts '%s'.
+" <FUN_008768a0@008768cc>
+00a0d814  "ui3d_hudelem_minscale" <FUN_00549de0@0054a3ad>
+00a0dcd4  "minDelayForOtherPlayerStatsFetch" <FUN_004e14f0@004e16fb> <FUN_005779c0@00577a0d>
+
+########## imports (dinput / user32 input) ##########
+RegisterClassA  @EXTERNAL:000000ed <?@009a3310> <FUN_00634c60@00634d02>
+DefWindowProcA  @EXTERNAL:000000ee <?@009a3314> <FUN_00554aa0@00554b30> <FUN_00554aa0@00554cc0> <FUN_008681e0@00868262>
+CallWindowProcA  @EXTERNAL:000000f1 <?@009a3320> <?@004df376>
+RegisterClassExA  @EXTERNAL:000000ff <?@009a3358> <FUN_00867f30@00867f93>
+GetMessageA  @EXTERNAL:00000104 <?@009a336c> <FUN_006eb1f0@006eb47c> <FUN_006eb1f0@006eb30b> <FUN_004c9b60@004c9bf5> <FUN_004c9b60@004c9c29>
+DispatchMessageA  @EXTERNAL:00000105 <?@009a3370> <FUN_006eb1f0@006eb330> <FUN_006eb1f0@006eb4a1> <FUN_004c9b60@004c9c1c>
+TranslateMessage  @EXTERNAL:00000106 <?@009a3374> <FUN_006eb1f0@006eb329> <FUN_006eb1f0@006eb49a> <FUN_004c9b60@004c9c15>
+SetWindowLongA  @EXTERNAL:0000011b <?@009a33c8> <FUN_006b7e10@006b7ef0> <FUN_00634c60@00634f0b> <?@0084f8e8> <?@0084f8f1>
+PeekMessageA  @EXTERNAL:00000122 <?@009a33e4> <FUN_006eb1f0@006eb2f1> <FUN_006eb1f0@006eb343> <FUN_006eb1f0@006eb46b> <FUN_006eb1f0@006eb4b4>
+GetDeviceCaps  @EXTERNAL:00000129 <?@009a3050> <FUN_00634c60@00634d56> <FUN_00634c60@00634d5f> <FUN_00634c60@00634df6>

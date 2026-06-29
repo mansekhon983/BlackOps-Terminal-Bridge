@@ -87,6 +87,7 @@ private:
 
     int cols_ = 80, rows_ = 20;
     int cx_ = 0, cy_ = 0;
+    bool wrapPending_ = false;          // deferred wrap at right margin (DECAWM)
     int scrollTop_ = 0, scrollBot_ = 19;
     int scx_ = 0, scy_ = 0;             // saved cursor
     uint8_t color_ = kDefaultColor;

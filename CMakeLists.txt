@@ -76,3 +76,9 @@ add_executable(vtparse_test tools/vtparse_test.cpp src/grid.cpp src/vtparse.cpp)
 target_include_directories(vtparse_test PRIVATE src)
 target_compile_definitions(vtparse_test PRIVATE
   WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+
+# Replay a captured raw-pty log through the parser+grid (offline render debug).
+add_executable(feed_log tools/feed_log.cpp src/grid.cpp src/vtparse.cpp)
+target_include_directories(feed_log PRIVATE src)
+target_compile_definitions(feed_log PRIVATE
+  WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
