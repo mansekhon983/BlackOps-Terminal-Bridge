@@ -21,7 +21,8 @@ bool available();
 class Session {
 public:
     // Spawn `command` (default cmd.exe) attached to a `cols`x`rows` pseudoconsole.
-    bool start(short cols, short rows, const char* command);
+    // `cwd` is the child's starting directory (nullptr/empty = inherit ours).
+    bool start(short cols, short rows, const char* command, const char* cwd = nullptr);
 
     // True while the child process is running.
     bool alive();

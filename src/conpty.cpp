@@ -42,7 +42,7 @@ namespace conpty {
 
 bool available() { return resolve(); }
 
-bool Session::start(short cols, short rows, const char* command) {
+bool Session::start(short cols, short rows, const char* command, const char* cwd) {
     if (!resolve()) return false;
 
     // Two pipes: one for our input -> child, one for child output -> us.
@@ -81,8 +81,9 @@ bool Session::start(short cols, short rows, const char* command) {
     std::vector<char> mut(cmd.begin(), cmd.end());
     mut.push_back('\0');
 
+    const char* dir = (cwd && *cwd) ? cwd : nullptr;
     BOOL ok = CreateProcessA(nullptr, mut.data(), nullptr, nullptr, FALSE,
-                             EXTENDED_STARTUPINFO_PRESENT, nullptr, nullptr,
+                             EXTENDED_STARTUPINFO_PRESENT, nullptr, dir,
                              &si.StartupInfo, &pi_);
     DeleteProcThreadAttributeList(list);
     if (!ok) { stop(); return false; }

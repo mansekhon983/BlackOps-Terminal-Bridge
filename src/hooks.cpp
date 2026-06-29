@@ -288,13 +288,35 @@ void emuReaderLoop() {
     }
 }
 
+// BlackOps.exe is 32-bit, so launching a plain "cmd.exe" gets the 32-bit cmd
+// (WOW64 redirects System32 -> SysWOW64). Inside that 32-bit shell, C:\Windows\
+// System32 is likewise redirected, so 64-bit-only tools that live only in the
+// real System32 -- notably ssh/scp in System32\OpenSSH -- come back "not
+// recognized". Launch the native 64-bit cmd via the Sysnative alias (visible
+// only to 32-bit processes) so the shell sees the real System32 and PATH stays
+// untouched. Falls back to "cmd.exe" if Sysnative isn't present.
+std::string nativeShell() {
+    char win[MAX_PATH];
+    if (GetWindowsDirectoryA(win, MAX_PATH)) {
+        std::string sysnative = std::string(win) + "\\Sysnative\\cmd.exe";
+        if (GetFileAttributesA(sysnative.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return sysnative;
+    }
+    return "cmd.exe";
+}
+
 void emuStart() {
     g_screen.init(sig::grid_cols, kEmuRows);
     g_parser = new vt::Parser(g_screen);
     // Answer terminal queries (DSR/DA) by writing back to the pty so size
     // detection works instantly instead of stalling on a ~15s timeout.
     g_parser->setResponder([](const char* s, int n) { g_pty.write(s, (size_t)n); });
-    if (!g_pty.start(static_cast<short>(sig::grid_cols), kEmuRows, "cmd.exe")) {
+    // Start the native 64-bit shell (see nativeShell) in the user's home dir
+    // rather than the game's install folder (the child would otherwise inherit
+    // BlackOps.exe's working directory).
+    std::string shell = nativeShell();
+    const char* home = getenv("USERPROFILE");
+    if (!g_pty.start(static_cast<short>(sig::grid_cols), kEmuRows, shell.c_str(), home)) {
         logf("[emu] ConPTY start FAILED\n");
         delete g_parser; g_parser = nullptr;
         g_emuMode = false;
