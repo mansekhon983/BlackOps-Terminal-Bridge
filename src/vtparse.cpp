@@ -7,10 +7,27 @@ namespace {
 // ANSI SGR 30..37 map directly to our colour indices 0..7; bright is +8.
 inline uint8_t ansiFg(int code) { return static_cast<uint8_t>(code - 30); }
 
-// RGB -> nearest ANSI-8 (bit0=red, bit1=green, bit2=blue; matches the ANSI order
-// black,red,green,yellow,blue,magenta,cyan,white).
+// RGB -> ANSI-8 (bit0=red, bit1=green, bit2=blue; ANSI order black,red,green,
+// yellow,blue,magenta,cyan,white). A flat per-channel >127 threshold splits a
+// single hue across buckets -- e.g. Claude's orange brand colour comes through
+// as red on the box (217,119,87 -> only red passes) but as "white" on the
+// brighter logo (all channels clear 127) -- which then renders as two different
+// colours. Split on saturation instead: near-grey colours return 7 ("default",
+// remapped to a readable colour at blit time, since the engine has no visible
+// white), while saturated colours pick their hue from the channels near the
+// max. The "high" threshold is biased toward the max channel so warm oranges
+// stay red rather than tipping to yellow/white.
 inline uint8_t rgbToAnsi8(int r, int g, int b) {
-    return static_cast<uint8_t>((r > 127 ? 1 : 0) | (g > 127 ? 2 : 0) | (b > 127 ? 4 : 0));
+    int mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    int mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    if (mx - mn < 56) return 7;                       // low saturation -> grey/white
+    // Saturated: classic per-channel threshold. This deliberately tracks
+    // brightness -- e.g. Claude's "thinking" spinner pulses its orange, and as it
+    // brightens the green channel crosses 127, flipping red<->yellow, which gives
+    // the live red/yellow shimmer. The static welcome-box orange sits below the
+    // threshold (g~119) and stays red.
+    uint8_t idx = static_cast<uint8_t>((r > 127 ? 1 : 0) | (g > 127 ? 2 : 0) | (b > 127 ? 4 : 0));
+    return idx ? idx : 7;
 }
 
 // xterm-256 index -> ANSI colour. 0..15 standard; 16..231 6x6x6 cube; 232..255

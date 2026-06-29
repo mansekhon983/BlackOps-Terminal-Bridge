@@ -138,7 +138,7 @@ void emuClear() {
     char* ch = gridChars();
     char* at = gridAttrs();
     const int n = sig::grid_cols * sig::grid_rows;
-    for (int i = 0; i < n; ++i) { ch[i] = ' '; at[i] = (1 << 4) | 1; }
+    for (int i = 0; i < n; ++i) { ch[i] = ' '; at[i] = (0 << 4) | 1; }
 }
 
 // --- E2 pipeline: ConPTY child -> reader thread -> VT parser -> grid -> blit --
@@ -151,34 +151,49 @@ vt::Parser*      g_parser = nullptr;
 std::thread      g_ptyReader;
 std::atomic<bool> g_ptyRunning{false};
 
-// TEMP debug: capture raw pty output to a file so we can see exactly what an app
-// (Claude Code) sends -- cursor moves, scroll regions, size queries.
-const bool   kLogPty     = false;   // flip to capture raw pty -> build/pty_log.bin for feed_log replay
-const size_t kPtyLogCap  = 512 * 1024;
-FILE*        g_ptyLog    = nullptr;
-size_t       g_ptyLogLen = 0;
-
-// ANSI colour index (0..15) -> engine palette high-nibble. Provisional, from the
-// E1 readout (2≈black 3=red 4=green 5=yellow 6=blue …); calibrated in-game.
+// ANSI colour index (0..15) -> engine palette high-nibble. Palette mapped live
+// (Ctrl+J test): nibble 0 (the default slot) = white, nibble 2 = black, and
+// nibbles 3..8 = red/green/yellow/blue/magenta/cyan; 9..F also render white.
+// So white IS available (nibble 0) -- the game's own native terminal uses it.
+// The mapping is direct; ANSI white -> engine white (no green hack). ANSI black
+// maps to engine black (invisible on the black CRT, which is correct for black
+// foreground text). Bright variants (8..15) fold onto their base via & 7.
 uint8_t ansiToEngine(uint8_t ansi) {
     static const uint8_t map[8] = {
-        2,  // 0 black
-        3,  // 1 red
-        4,  // 2 green
-        5,  // 3 yellow
-        6,  // 4 blue
-        7,  // 5 magenta
-        8,  // 6 cyan
-        0,  // 7 white -> engine default (white)
+        2,  // 0 black   -> engine 2 (black)
+        3,  // 1 red     -> engine 3
+        4,  // 2 green   -> engine 4
+        5,  // 3 yellow  -> engine 5
+        6,  // 4 blue    -> engine 6
+        7,  // 5 magenta -> engine 7
+        8,  // 6 cyan    -> engine 8
+        0,  // 7 white   -> engine 0 (default/white)
     };
     return map[ansi & 7];
 }
 
-// Blit the grid model into the engine char/attr grids. Colour uses a "filler"
-// trick to work around the engine's run-drawer off-by-one: it colours a run by
-// the attr of the run's LAST cell, so we put the real colour only on the last
-// cell of each colour span and a distinct filler on the interior cells (the
-// filler is never drawn -- it just makes the run break in the right place).
+// Blit the grid model into the engine char/attr grids.
+//
+// Two engine quirks shape this (both confirmed from the decompiled renderer
+// FUN_00575be0 / glyph emitter FUN_006d65c0):
+//
+//  1. NUL-terminated rows + shared vertex budget. The draw loop reads each grid
+//     row as a NUL-terminated C-string into one per-frame text-vertex buffer with
+//     a hard size cap; a row with no NUL is read ~2KB past its end, and a screen
+//     of such runs exhausts the buffer, after which EVERY later run that frame is
+//     silently dropped (bottom rows vanish). So every row is NUL-terminated after
+//     its last glyph.
+//
+//  2. Run-colour off-by-one. The draw loop splits a row into runs of equal attr
+//     and colours each run by the attr of the cell that ENDS the run (its
+//     boundary), not the run's own cells. Painting each cell its true colour
+//     therefore bleeds every segment's colour onto its neighbour. We invert it
+//     with a "filler" scheme: within a colour segment the interior cells get a
+//     throwaway attr and only the segment's LAST cell carries the real colour, so
+//     the engine's run boundary lands exactly on the segment end. The filler is
+//     the PREVIOUS segment's colour -- always != this segment's colour (adjacent
+//     segments differ by definition), and it makes the boundary cell that the
+//     run-drawer "steals" from the next segment land on the correct colour.
 void emuBlit() {
     if (!g_moduleBase) return;
     char* gch = gridChars();
@@ -188,32 +203,36 @@ void emuBlit() {
     const int cols = g_screen.cols();   // 80
     const bool scrolled = g_screen.viewOffset() > 0;
 
-    for (int r = 0; r < kEmuRows; ++r) {
+    // First pass: glyphs into the engine char grid + the desired engine colour per
+    // cell into a parallel buffer (attrs are assigned afterwards by the filler
+    // scheme, which needs to see whole colour segments). Spaces are invisible, so
+    // each space inherits the colour of the preceding glyph: this extends a lone
+    // coloured char (e.g. a 1-cell "|" border) across the following space into a
+    // 2-cell segment, which the filler scheme CAN colour correctly (the engine
+    // can't isolate a single-cell run). Leading spaces keep the default colour.
+    static uint8_t hicol[sig::grid_rows][sig::grid_cols];
+    for (int r = 0; r < sig::grid_rows; ++r) {
+        char* row = gch + r * sig::grid_cols;
+        uint8_t lastCol = 0;   // colour carried across spaces (default for leading)
         for (int c = 0; c < sig::grid_cols; ++c) {
-            int gidx = r * sig::grid_cols + c;
-            if (c < cols) {
+            if (r < kEmuRows && c < cols) {
                 // viewAt resolves through the scroll-back history when scrolled up.
                 const grid::Cell& cell = g_screen.viewAt(r, c);
-                uint8_t mapped = ansiToEngine(cell.color);
-                // last cell of a colour span? (next cell differs or row end)
-                bool lastOfRun = (c + 1 >= cols) ||
-                                 (ansiToEngine(g_screen.viewAt(r, c + 1).color) != mapped);
-                uint8_t hi = lastOfRun ? mapped : (mapped != 0 ? 0 : 1);  // filler != mapped
-                gch[gidx] = cell.ch ? cell.ch : ' ';
-                gat[gidx] = static_cast<char>((hi << 4) | 1);
+                char ch = cell.ch ? cell.ch : ' ';
+                row[c] = ch;
+                if (ch == ' ') {
+                    hicol[r][c] = lastCol;
+                } else {
+                    uint8_t hi = ansiToEngine(cell.color);
+                    hicol[r][c] = hi;
+                    lastCol = hi;
+                }
             } else {
-                gch[gidx] = ' ';
-                gat[gidx] = (1 << 4) | 1;
+                row[c] = ' ';
+                hicol[r][c] = lastCol;
             }
         }
     }
-    // Clear any rows below the emulated area (engine grid is taller than kEmuRows).
-    for (int r = kEmuRows; r < sig::grid_rows; ++r)
-        for (int c = 0; c < sig::grid_cols; ++c) {
-            int gidx = r * sig::grid_cols + c;
-            gch[gidx] = ' ';
-            gat[gidx] = (1 << 4) | 1;
-        }
 
     if (scrolled) {
         // Scroll-back indicator on the last visible row.
@@ -229,6 +248,33 @@ void emuBlit() {
             if (gch[gidx] == ' ') gch[gidx] = '_';
         }
     }
+
+    // Second pass per row: assign attrs via the filler scheme over [0..last] and
+    // NUL-terminate the trailing region (see quirks 1 and 2 above).
+    for (int r = 0; r < sig::grid_rows; ++r) {
+        char* row = gch + r * sig::grid_cols;
+        char* att = gat + r * sig::grid_cols;
+        int last = -1;
+        for (int c = 0; c < sig::grid_cols; ++c)
+            if (row[c] != ' ' && row[c] != '\0') last = c;
+
+        uint8_t prev = 0xFF;        // previous segment's colour (none yet)
+        int segStart = 0;
+        for (int c = 0; c <= last; ++c) {
+            if (c == last || hicol[r][c + 1] != hicol[r][c]) {
+                uint8_t v = hicol[r][c];
+                uint8_t filler = (prev == 0xFF) ? (v == 2 ? 0 : 2) : prev;
+                for (int k = segStart; k < c; ++k) att[k] = static_cast<char>((filler << 4) | 1);
+                att[c] = static_cast<char>((v << 4) | 1);
+                prev = v;
+                segStart = c + 1;
+            }
+        }
+        for (int c = last + 1; c < sig::grid_cols; ++c) {
+            row[c] = '\0';
+            att[c] = (0 << 4) | 1;
+        }
+    }
 }
 
 // Reader thread: pull pty output and feed the parser (under the screen lock).
@@ -237,9 +283,6 @@ void emuReaderLoop() {
     while (g_ptyRunning.load()) {
         DWORD n = g_pty.read(buf, sizeof(buf));
         if (n == 0) break;                       // pty closed
-        if (g_ptyLog && g_ptyLogLen < kPtyLogCap) {
-            fwrite(buf, 1, n, g_ptyLog); fflush(g_ptyLog); g_ptyLogLen += n;
-        }
         std::lock_guard<std::mutex> lk(g_screen.mtx);
         if (g_parser) g_parser->feed(buf, static_cast<int>(n));
     }
@@ -257,10 +300,6 @@ void emuStart() {
         g_emuMode = false;
         return;
     }
-    if (kLogPty) {
-        g_ptyLog = fopen("C:\\Ghidra\\ghidra_projects\\build\\pty_log.bin", "wb");
-        g_ptyLogLen = 0;
-    }
     g_ptyRunning.store(true);
     g_ptyReader = std::thread(emuReaderLoop);
     logf("[emu] started ConPTY %dx%d\n", sig::grid_cols, kEmuRows);
@@ -271,7 +310,6 @@ void emuStop() {
     g_pty.stop();                       // unblocks the reader's blocking read()
     if (g_ptyReader.joinable()) g_ptyReader.join();
     delete g_parser; g_parser = nullptr;
-    if (g_ptyLog) { fclose(g_ptyLog); g_ptyLog = nullptr; }
     emuClear();
 }
 
@@ -442,8 +480,11 @@ void checkCancel() {
 void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
                         uint32_t d, uint32_t e, uint32_t f) {
     if (g_emuMode) {
-        // Paint our grid, then pin reveal==write so the renderer's reveal/ring
-        // half is skipped and only the draw loop runs (drawing our grid).
+        // Paint our grid, then pin the reveal head to the write head so the
+        // renderer's typewriter-reveal half is skipped (it would otherwise repaint
+        // the line ring over our grid). The draw loop's second half then paints all
+        // 27 grid rows unconditionally -- every row is visible thanks to the
+        // per-row NUL termination in emuBlit (see the notes there).
         emuBlit();
         writeGlobalInt(sig::lines_shown_rva, readGlobalInt(sig::lines_written_rva));
     } else {
