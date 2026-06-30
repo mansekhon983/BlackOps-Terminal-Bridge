@@ -1,0 +1,20 @@
+==================================================
+FUNCTION FUN_0062ef60 @ 0062ef60
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+int FUN_0062ef60(void)
+
+{
+  DWORD DVar1;
+  
+  if (DAT_0276fef4 == 0) {
+    _DAT_0276feec = timeGetTime();
+    DAT_0276fef4 = 1;
+  }
+  DVar1 = timeGetTime();
+  return DVar1 - _DAT_0276feec;
+}
+
+
+

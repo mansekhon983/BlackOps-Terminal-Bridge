@@ -28,6 +28,8 @@ int main(int argc, char** argv) {
     p.feed(data.data(), (int)data.size());
 
     printf("replayed %ld bytes -> %dx%d  (cursor r%d c%d)\n", n, cols, rows, s.curRow(), s.curCol());
+    printf("scroll-back: history=%zu  peak=%zu  cls-detector-clears=%d  altScreen=%d\n",
+           s.historySize(), s.historyMax(), s.clearCount(), (int)s.altScreen());
     printf("    +"); for (int c = 0; c < cols; ++c) putchar('-'); printf("+\n");
     for (int r = 0; r < rows; ++r) {
         printf("%2d  |", r);

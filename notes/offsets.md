@@ -149,6 +149,26 @@ visible, titled). Swallowing messages while in emu mode stops game actions / the
 ESC pause menu (TranslateMessage already produced WM_CHAR in the pump, so swallowing
 WM_KEYDOWN doesn't lose the char). Exit emu via **Ctrl+]** hotkey.
 
+### Native input caret + reveal timer + cls pattern (confirmed 2026-06-30, `DumpTimer.java`, pty capture)
+> Findings while adding the typewriter reveal, instant-TUI rendering, and `cls`
+> scroll-back clearing. See re-log session 15.
+
+| Symbol | Address | RVA | Role |
+|---|---|---|---|
+| `native_input_str` | `DAT_00a321c4` | `0x6321C4` | the game's own terminal input-line text, drawn by `frame_render` at screen line `0x23` via `glyph_run_draw(...,&DAT_00a321c4,0x7fffffff,...)` with blink alpha `param_5[3]`. Its x is the **previous row's pixel width** (`param_2` is not reset) — so the caret drifts right with our bottom grid row. **In `.rdata` (READ-ONLY): writing it crashes.** Suppressed in emu mode by hooking `glyph_run_draw` and skipping the call whose text ptr == this address. |
+| `cursor_rect_count` | `DAT_00bf8230` | `0x7F8230` | count of cursor/selection rects `frame_render` draws (`if(0<DAT_00bf8230){...&DAT_00bf80c8...}`); in writable `.data`. (Not the drifting caret — that's the text above.) |
+| `reveal_timer` | `FUN_0062ef60` | `0x22EF60` | `Sys_Milliseconds()` = `timeGetTime() - start`. `frame_render`'s typewriter half reveals `now_ms - last_ms` work-units/frame (1 char or 1 control entry each) → **native reveal rate ≈ 1 glyph/ms (~1000 cps)**. Emu `emuPump` matches this via `timeGetTime` (link `winmm`). |
+
+**`cls` clear pattern (cmd via ConPTY):** `cls` emits **no `ESC[2J`/`ESC[3J`** — it does
+`ESC[25l ESC[H` then **~26× `ESC[K<CR><LF>`** (erase each line + LF down), then repositions.
+We detect a near-full-screen run of blank erase-then-linefeed in `grid::lineFeed` and drop
+the scroll-back. NOTE: Claude Code's full-frame repaint emits the **identical** pattern
+(`ESC[H` → 26× `ESC[K<CR><LF>` → `ESC[H` → redraw), so the two are indistinguishable at the
+byte level (harmless: Claude has nothing in history to clear because it never scrolls).
+Claude uses **no alt-screen, no `IND`/`RI`, only absolute `CUP`** to reposition → instant-TUI
+detection keys off upward `CUP`/`CUU` (`Screen::repaint()`), and Claude produces **zero**
+scroll-back (`feed_log` replay: history peak = 0) — the motivation for the tall-viewport work.
+
 ## Terminal strings used as XREF entry points
 
 See `re-log.md`. List the exact strings found in Ghidra's Defined Strings and the

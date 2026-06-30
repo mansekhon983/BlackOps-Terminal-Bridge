@@ -442,3 +442,42 @@ root-cause two real engine quirks; both compensated for in `emuBlit`.
    live only in the real `System32\OpenSSH`. NOT a PATH problem (a registry-PATH
    rebuild attempt was wrong and broke `claude`; reverted). The native shell sees
    the real System32. **User-confirmed:** `cd`→home, `ssh -V`, `claude` all work.
+
+## 2026-06-30 — Session 15: caret suppression, native typewriter reveal, instant TUIs, cls scroll-back, tall-viewport groundwork
+
+1. **Native input caret suppressed.** The drifting blinking caret bottom-left was the
+   game's own input line: `frame_render` draws `&DAT_00a321c4` at screen line `0x23`
+   via `glyph_run_draw` (`FUN_005f4a90`, RVA `0x1F4A90`) using the *previous* row's
+   pixel width as x (so it tracked our bottom grid row). First attempt wrote `\0` to
+   the buffer and crashed — the address is in **`.rdata` (read-only)** (verified via PE
+   section flags). Fix: hook `glyph_run_draw` and, in emu mode, skip the one call whose
+   text pointer == `module_base + 0x6321C4`. Pointer compare only, no writes. The
+   cursor-rect count `DAT_00bf8230` (`0x7F8230`, writable `.data`) is a separate thing.
+
+2. **Native typewriter reveal recreated.** Decompiled the reveal timer `FUN_0062ef60`
+   (`0x22EF60`) = `Sys_Milliseconds()` (`timeGetTime()-start`); `frame_render` reveals
+   `now-last` work-units/frame ⇒ ~**1 glyph/ms (~1000 cps)**. Reader thread now only
+   buffers raw pty bytes; main-thread `emuPump` meters them into the parser via
+   `timeGetTime` (linked `winmm`). Only visible glyphs counted (`grid::Screen::produced()`,
+   bumped in `putChar`); escape/control bytes are free. Big backlog fast-forwards above
+   an 8KB cap.
+
+3. **Instant rendering for TUIs.** Throttling a full-screen repainter looks bad, so a TUI
+   is fed all-at-once. Detected by alt-screen OR the stream moving the cursor **up**
+   (`Screen::repaint()`, set on `CUU`/reverse-index and on absolute `CUP`/`VPA` to a
+   row above the cursor). Claude uses **only absolute `CUP`** (no `CUU`, no alt-screen),
+   so the absolute-up case is what catches it. Instant mode lingers `kInstantHold` ms.
+
+4. **`cls` clears scroll-back.** cmd's `cls` (via ConPTY) emits no `ESC[2J/3J`; it does
+   `ESC[H` + ~26× `ESC[K<CR><LF>`. `grid::lineFeed` counts a near-full-screen run of
+   blank erase-then-LF and drops `history_`. Also removed the `-- SCROLLED --` overlay.
+
+5. **Why Claude won't scroll in our 27-row screen (root cause).** Re-added a temporary
+   pty capture, replayed offline through the real grid/parser (`feed_log`, extended with
+   `history/peak/clears` diagnostics): Claude **full-repaints** every frame
+   (`ESC[H` → 26× `ESC[K<CR><LF>` → `ESC[H` → redraw), never scrolls → **history peak = 0**.
+   So scroll-back captures nothing from it (cmd `dir`/`cat` scroll fine). Note Claude's
+   repaint erase-step is byte-identical to `cls` (indistinguishable; harmless). Decision:
+   build a **fixed tall virtual viewport** (PTY/grid taller than the 27 visible rows) with
+   a cursor-following 27-row window + the existing bounded scroll-back, so Claude becomes
+   scrollable. Groundwork landed (grid diagnostics, `feed_log` diag); viewport next.
