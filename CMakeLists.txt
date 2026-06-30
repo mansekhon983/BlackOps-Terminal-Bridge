@@ -46,7 +46,7 @@ add_library(bo1bridge SHARED
 )
 
 target_include_directories(bo1bridge PRIVATE src)
-target_link_libraries(bo1bridge PRIVATE minhook)
+target_link_libraries(bo1bridge PRIVATE minhook winmm)  # winmm: timeGetTime
 
 target_compile_definitions(bo1bridge PRIVATE
   WIN32_LEAN_AND_MEAN

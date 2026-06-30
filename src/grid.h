@@ -29,6 +29,18 @@ public:
     int rows() const { return rows_; }
     int curRow() const { return cy_; }
     int curCol() const { return cx_; }
+
+    // Monotonic count of glyph cells written via putChar. The frame pump meters
+    // the pty stream against this so output reveals at the native ~1 char/ms rate
+    // (left-to-right, top-to-bottom) instead of appearing all at once.
+    uint64_t produced() const { return produced_; }
+
+    // Set whenever the stream moves the cursor *up* (CUU / reverse-index) -- the
+    // hallmark of an app repainting in place (vim, htop, Claude Code) as opposed
+    // to plain append output (dir, cat). The pump uses it to switch a TUI to
+    // instant rendering instead of typewriter-throttling it.
+    bool repaint() const { return repaint_; }
+    void clearRepaint()  { repaint_ = false; }
     const Cell& at(int row, int col) const { return cells_[row * cols_ + col]; }
 
     // cursor
@@ -72,6 +84,12 @@ public:
     void setAltScreen(bool on);
     bool altScreen() const { return altScreen_; }
 
+    // diagnostics (offline replay): scroll-back depth + how many times the cls
+    // detector wiped history.
+    size_t historySize() const { return history_.size(); }
+    int    clearCount()  const { return clearCount_; }
+    size_t historyMax()  const { return historyMax_; }
+
     // scroll-back view (call under mtx). viewOffset 0 = live bottom.
     void scrollViewUp(int n);
     void scrollViewDown(int n);
@@ -94,6 +112,17 @@ private:
     uint8_t scolor_ = kDefaultColor;    // saved colour
     bool altScreen_ = false;
     int viewOffset_ = 0;
+    uint64_t produced_ = 0;             // glyph cells written (see produced())
+    bool repaint_ = false;             // cursor moved up since last clearRepaint()
+    // cls detection: cmd's `cls` (via ConPTY) clears by erasing each line and
+    // scrolling -- ESC[H then ~screen-height of (EL, CR, LF) -- never ED2/ED3. We
+    // count consecutive blank erase-then-linefeed steps; a near-full-screen run
+    // means a clear, so we drop the scroll-back (else scrolling up shows the
+    // pre-cls output). Any printable or absolute cursor move breaks the run.
+    bool lastWasEL_  = false;
+    int  clearStreak_ = 0;
+    int  clearCount_ = 0;              // diag: times cls-detector cleared history
+    size_t historyMax_ = 0;           // diag: peak history depth
     std::vector<Cell> cells_;
     std::deque<std::vector<Cell>> history_;   // rows scrolled off the top
     static const size_t kMaxHistory = 1000;

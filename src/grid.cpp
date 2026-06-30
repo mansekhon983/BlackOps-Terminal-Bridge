@@ -16,6 +16,10 @@ void Screen::init(int cols, int rows) {
     color_ = scolor_ = kDefaultColor;
     altScreen_ = false;
     viewOffset_ = 0;
+    produced_ = 0;
+    repaint_ = false;
+    lastWasEL_ = false;
+    clearStreak_ = 0;
     history_.clear();
 }
 
@@ -32,13 +36,21 @@ void Screen::clampCursor() {
 
 // ---- cursor -----------------------------------------------------------------
 // Any explicit cursor movement cancels a pending right-margin wrap.
-void Screen::gotoXY(int row, int col) { cy_ = row; cx_ = col; wrapPending_ = false; clampCursor(); }
-void Screen::cursorUp(int n)    { cy_ -= std::max(1, n); wrapPending_ = false; clampCursor(); }
+void Screen::gotoXY(int row, int col) {
+    if (row < cy_) repaint_ = true;     // absolute move upward = an app repainting
+    clearStreak_ = 0; lastWasEL_ = false;
+    cy_ = row; cx_ = col; wrapPending_ = false; clampCursor();
+}
+void Screen::cursorUp(int n)    { cy_ -= std::max(1, n); wrapPending_ = false; repaint_ = true; clampCursor(); }
 void Screen::cursorDown(int n)  { cy_ += std::max(1, n); wrapPending_ = false; clampCursor(); }
 void Screen::cursorLeft(int n)  { cx_ -= std::max(1, n); wrapPending_ = false; clampCursor(); }
 void Screen::cursorRight(int n) { cx_ += std::max(1, n); wrapPending_ = false; clampCursor(); }
 void Screen::columnAbsolute(int col) { cx_ = col; wrapPending_ = false; clampCursor(); }
-void Screen::rowAbsolute(int row)    { cy_ = row; wrapPending_ = false; clampCursor(); }
+void Screen::rowAbsolute(int row) {
+    if (row < cy_) repaint_ = true;
+    clearStreak_ = 0; lastWasEL_ = false;
+    cy_ = row; wrapPending_ = false; clampCursor();
+}
 void Screen::saveCursor()    { scx_ = cx_; scy_ = cy_; scolor_ = color_; }
 void Screen::restoreCursor() { cx_ = scx_; cy_ = scy_; color_ = scolor_; wrapPending_ = false; clampCursor(); }
 
@@ -51,7 +63,9 @@ void Screen::putChar(char c) {
     Cell& cell = cells_[cy_ * cols_ + cx_];
     cell.ch = c;
     cell.color = color_;
-    if (cx_ + 1 >= cols_) wrapPending_ = true;   // at right margin: defer the wrap
+    ++produced_;                                  // one revealed glyph (for the pump)
+    lastWasEL_ = false; clearStreak_ = 0;         // real text breaks a cls run
+    if (cx_ + 1 >= cols_) wrapPending_ = true;    // at right margin: defer the wrap
     else ++cx_;
 }
 
@@ -59,6 +73,20 @@ void Screen::carriageReturn() { cx_ = 0; wrapPending_ = false; }
 
 void Screen::lineFeed() {
     wrapPending_ = false;
+    // cls detection: a long run of (erase-line, line-feed) with no text between
+    // is cmd's clear. On a near-full-screen run, drop the scroll-back so a later
+    // scroll up doesn't show the pre-clear output.
+    if (lastWasEL_) {
+        if (++clearStreak_ >= rows_ * 3 / 4 && !altScreen_) {
+            if (!history_.empty()) ++clearCount_;     // diag
+            history_.clear();
+            viewOffset_ = 0;
+            clearStreak_ = 0;
+        }
+    } else {
+        clearStreak_ = 0;
+    }
+    lastWasEL_ = false;
     if (cy_ >= scrollBot_) {
         scrollUp(1);              // at bottom of region -> scroll, cursor stays
     } else {
@@ -68,6 +96,7 @@ void Screen::lineFeed() {
 }
 
 void Screen::reverseIndex() {
+    repaint_ = true;
     if (cy_ <= scrollTop_) scrollDown(1);   // at region top -> scroll down
     else { --cy_; clampCursor(); }
 }
@@ -87,13 +116,22 @@ void Screen::eraseInLine(int mode) {
     else if (mode == 1) to = cx_;         // bol..cursor
     // mode 2: whole line
     for (int c = from; c <= to && c < cols_; ++c) clearCell(cy_, c);
+    lastWasEL_ = true;                    // part of a possible cls run (see lineFeed)
 }
 
 void Screen::eraseInDisplay(int mode) {
+    if (mode == 3) {                      // clear scroll-back only (xterm ED 3)
+        history_.clear();
+        viewOffset_ = 0;
+        return;
+    }
     if (mode == 2) {                      // whole screen + home
         for (int i = 0; i < cols_ * rows_; ++i) { cells_[i].ch = ' '; cells_[i].color = kDefaultColor; }
         cx_ = cy_ = 0;
         wrapPending_ = false;
+        // `clear`/`cls` should also drop the scroll-back so a later scroll up
+        // doesn't reveal pre-clear output (the normal-screen buffer only).
+        if (!altScreen_) { history_.clear(); viewOffset_ = 0; }
         return;
     }
     if (mode == 0) {                      // cursor..end
@@ -171,6 +209,7 @@ void Screen::scrollUp(int n) {
             std::vector<Cell> row(cells_.begin(), cells_.begin() + cols_);
             history_.push_back(std::move(row));
             if (history_.size() > kMaxHistory) history_.pop_front();
+            if (history_.size() > historyMax_) historyMax_ = history_.size();  // diag
         }
         for (int r = scrollTop_; r < scrollBot_; ++r)
             for (int c = 0; c < cols_; ++c)

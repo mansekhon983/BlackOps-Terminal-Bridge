@@ -7,6 +7,7 @@
 #include "vtparse.h"
 
 #include <windows.h>
+#include <timeapi.h>     // timeGetTime (excluded by WIN32_LEAN_AND_MEAN); link winmm
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -67,6 +68,19 @@ namespace sig {
     constexpr uintptr_t grid_attrs_rva = 0x007F44D8;  // DAT_00bf44d8
     constexpr int       grid_cols = 80;
     constexpr int       grid_rows = 27;   // rows 0..26; row 26 is the input line
+
+    // glyph_run_draw = FUN_005f4a90 (RVA 0x1F4A90). void __cdecl(ctx, text, count,
+    // ...11 args). The engine's text-run drawer (measure + transform + emit). We
+    // hook it to suppress exactly ONE draw: the game's native input line. The
+    // renderer draws that line at the bottom (screen line 0x23) using the read-only
+    // string &DAT_00a321c4 as its text and the *previous* row's pixel width as its
+    // x-offset, so it shows a blinking caret that drifts right with our row-26 text.
+    // We can't blank the buffer (it's in .rdata -> writing crashes), so instead we
+    // compare the text pointer and skip the call when it's that string in emu mode.
+    constexpr uintptr_t  glyph_run_draw_rva = 0x001F4A90;
+    constexpr const char* glyph_run_draw_verify =
+        "83 EC 08 D9 44 24 2C 56 8B 74 24 1C 51 D9 1C 24 56";
+    constexpr uintptr_t  native_input_rva   = 0x006321C4;  // &DAT_00a321c4 (.rdata, RO)
 }
 
 namespace {
@@ -151,6 +165,16 @@ vt::Parser*      g_parser = nullptr;
 std::thread      g_ptyReader;
 std::atomic<bool> g_ptyRunning{false};
 
+// Typewriter reveal (matches the game's native terminal). The reader thread only
+// buffers raw pty bytes here; the per-frame pump (emuPump, main thread) meters
+// them into the parser at the native rate -- ~1 visible glyph per millisecond
+// (the engine's own reveal: budget = elapsed ms, paced by timeGetTime; see
+// FUN_00575be0 / FUN_0062ef60). g_pending is the unrevealed backlog.
+std::mutex   g_pendMtx;
+std::string  g_pending;
+DWORD        g_revealLast  = 0;  // timeGetTime() at the last pump (0 = uninit)
+DWORD        g_instantUntil = 0; // feed instantly (no typewriter) until this time
+
 // ANSI colour index (0..15) -> engine palette high-nibble. Palette mapped live
 // (Ctrl+J test): nibble 0 (the default slot) = white, nibble 2 = black, and
 // nibbles 3..8 = red/green/yellow/blue/magenta/cyan; 9..F also render white.
@@ -234,18 +258,20 @@ void emuBlit() {
         }
     }
 
-    if (scrolled) {
-        // Scroll-back indicator on the last visible row.
-        const char* hint = "-- SCROLLED (PgDn) --";
-        int row = kEmuRows - 1;
-        for (int i = 0; hint[i] && i < sig::grid_cols; ++i)
-            gch[row * sig::grid_cols + i] = hint[i];
-    } else {
-        // Caret at the cursor so typing is visible (only when live).
+    if (!scrolled) {
+        // Blinking caret at the cursor (only when live), ~1 Hz off the system tick.
+        // On an empty cell it blinks an underscore; on a glyph it blinks the glyph
+        // itself (visible <-> hidden) -- the closest a one-glyph-per-cell, fg-only
+        // grid gets to a block cursor, so the cursor is visible on text too.
         int cr = g_screen.curRow(), cc = g_screen.curCol();
         if (cr >= 0 && cr < kEmuRows && cc >= 0 && cc < sig::grid_cols) {
             int gidx = cr * sig::grid_cols + cc;
-            if (gch[gidx] == ' ') gch[gidx] = '_';
+            bool blinkOn = ((GetTickCount() / 500) & 1) == 0;
+            if (gch[gidx] == ' ' || gch[gidx] == '\0') {
+                gch[gidx] = blinkOn ? '_' : ' ';
+            } else if (!blinkOn) {
+                gch[gidx] = ' ';                 // glyph blinks off
+            }
         }
     }
 
@@ -277,14 +303,84 @@ void emuBlit() {
     }
 }
 
-// Reader thread: pull pty output and feed the parser (under the screen lock).
+// Reader thread: pull pty output and buffer it raw. Parsing happens on the main
+// thread in emuPump so the reveal can be metered to the engine's native rate.
 void emuReaderLoop() {
     char buf[4096];
     while (g_ptyRunning.load()) {
         DWORD n = g_pty.read(buf, sizeof(buf));
         if (n == 0) break;                       // pty closed
+        std::lock_guard<std::mutex> lk(g_pendMtx);
+        g_pending.append(buf, n);
+    }
+}
+
+// Per-frame metered feed (main thread). Two modes:
+//   * Typewriter (plain append output: dir, cat, build logs) -- reveals at the
+//     engine's native rate: ~1 visible glyph per elapsed millisecond, in stream
+//     order, so text appears left-to-right / top-to-bottom exactly like the
+//     game's own terminal (paced off timeGetTime; see FUN_00575be0/FUN_0062ef60).
+//   * Instant (full-screen TUIs: vim, htop, Claude Code) -- fed all at once so
+//     in-place repaints/animations aren't slowed. A TUI is detected by the alt
+//     screen OR by the stream moving the cursor up (Screen::repaint()); once
+//     seen, instant mode sticks for a short window so steady repaint traffic
+//     stays smooth, then typewriter resumes for ordinary output.
+// Escape/control bytes are processed for free (only visible glyphs are metered).
+// A large backlog (e.g. `cat bigfile`) is fast-forwarded above a cap so it can't
+// take minutes.
+constexpr size_t kBacklogCap   = 8192;   // bytes; excess dumped instantly
+constexpr DWORD  kInstantHold  = 750;    // ms instant mode lingers after a repaint
+void emuPump() {
+    if (!g_parser) return;
+
+    DWORD now = timeGetTime();
+    if (g_revealLast == 0) g_revealLast = now;   // first frame: no burst
+    DWORD budget = now - g_revealLast;           // glyphs to reveal this frame (1/ms)
+    g_revealLast = now;
+
+    std::string chunk;
+    { std::lock_guard<std::mutex> lk(g_pendMtx); chunk.swap(g_pending); }
+    if (chunk.empty()) return;
+
+    size_t pos = 0;
+    {
         std::lock_guard<std::mutex> lk(g_screen.mtx);
-        if (g_parser) g_parser->feed(buf, static_cast<int>(n));
+        bool instant = g_screen.altScreen() ||
+                       static_cast<int>(g_instantUntil - now) > 0;
+        if (instant) {
+            g_parser->feed(chunk.data(), static_cast<int>(chunk.size()));
+            pos = chunk.size();
+            if (g_screen.repaint()) g_instantUntil = now + kInstantHold;
+        } else {
+            // Fast-forward: keep the reveal no more than kBacklogCap bytes behind
+            // the live stream, dumping the excess instantly.
+            if (chunk.size() > kBacklogCap) {
+                size_t ff = chunk.size() - kBacklogCap;
+                g_parser->feed(chunk.data(), static_cast<int>(ff));
+                pos = ff;
+            }
+            // Typewriter: feed one byte at a time until `budget` glyphs land, or
+            // until a cursor-up reveals a TUI -> flip to instant for the rest.
+            g_screen.clearRepaint();
+            uint64_t start = g_screen.produced();
+            for (; pos < chunk.size(); ++pos) {
+                g_parser->feed(chunk.data() + pos, 1);
+                if (g_screen.repaint()) {                 // TUI repaint detected
+                    g_instantUntil = now + kInstantHold;
+                    if (++pos < chunk.size())
+                        g_parser->feed(chunk.data() + pos,
+                                       static_cast<int>(chunk.size() - pos));
+                    pos = chunk.size();
+                    break;
+                }
+                if (g_screen.produced() - start >= budget) { ++pos; break; }
+            }
+        }
+    }
+    // Return the unrevealed tail to the front of the backlog for next frame.
+    if (pos < chunk.size()) {
+        std::lock_guard<std::mutex> lk(g_pendMtx);
+        g_pending.insert(0, chunk, pos, chunk.size() - pos);
     }
 }
 
@@ -307,6 +403,9 @@ std::string nativeShell() {
 
 void emuStart() {
     g_screen.init(sig::grid_cols, kEmuRows);
+    { std::lock_guard<std::mutex> lk(g_pendMtx); g_pending.clear(); }
+    g_revealLast = 0;
+    g_instantUntil = 0;
     g_parser = new vt::Parser(g_screen);
     // Answer terminal queries (DSR/DA) by writing back to the pty so size
     // detection works instantly instead of stalling on a ~15s timeout.
@@ -332,6 +431,7 @@ void emuStop() {
     g_pty.stop();                       // unblocks the reader's blocking read()
     if (g_ptyReader.joinable()) g_ptyReader.join();
     delete g_parser; g_parser = nullptr;
+    { std::lock_guard<std::mutex> lk(g_pendMtx); g_pending.clear(); }
     emuClear();
 }
 
@@ -507,6 +607,7 @@ void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
         // the line ring over our grid). The draw loop's second half then paints all
         // 27 grid rows unconditionally -- every row is visible thanks to the
         // per-row NUL termination in emuBlit (see the notes there).
+        emuPump();      // meter pty output into the grid at the native reveal rate
         emuBlit();
         writeGlobalInt(sig::lines_shown_rva, readGlobalInt(sig::lines_written_rva));
     } else {
@@ -514,6 +615,28 @@ void __cdecl hook_frame(uint32_t a, uint32_t b, uint32_t c,
         pumpOutput();                   // feed output BEFORE the reveal pass
     }
     if (orig_frame) orig_frame(a, b, c, d, e, f);
+}
+
+// ---- glyph_run_draw hook (suppress the native input caret in emu mode) ------
+// FUN_005f4a90: void __cdecl(ctx, text, count, ...). The engine's text-run
+// drawer. In emu mode we skip the single call that draws the game's own input
+// line (text == &DAT_00a321c4) so its blinking caret doesn't show over our grid.
+// Pointer compare only -- we never write to that read-only string. All other
+// draws (including our grid rows) pass straight through.
+using GlyphRunDraw_t = void(__cdecl*)(uint32_t, uint32_t, uint32_t, uint32_t,
+                                      float, float, uint32_t, uint32_t,
+                                      uint32_t, uint32_t, uint32_t);
+GlyphRunDraw_t orig_glyphrun = nullptr;
+
+void __cdecl hook_glyphrun(uint32_t p1, uint32_t p2, uint32_t p3, uint32_t p4,
+                           float p5, float p6, uint32_t p7, uint32_t p8,
+                           uint32_t p9, uint32_t p10, uint32_t p11) {
+    if (g_emuMode && g_moduleBase &&
+        p2 == static_cast<uint32_t>(g_moduleBase + sig::native_input_rva)) {
+        return;  // skip the game's native input line over our grid
+    }
+    if (orig_glyphrun)
+        orig_glyphrun(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);
 }
 
 // ---- dispatch_submit hook ---------------------------------------------------
@@ -666,6 +789,12 @@ bool install() {
     // Per-frame pump: hook the terminal renderer (RVA + verify, ASLR off).
     uintptr_t frameAddr = resolveRva("frame_render", sig::frame_render_rva, sig::frame_render_verify);
     bool fr = createHookAt("frame_render", frameAddr, (void*)&hook_frame, reinterpret_cast<void**>(&orig_frame));
+
+    // glyph_run_draw: hooked only to suppress the native input caret in emu mode
+    // (see hook_glyphrun). Not fatal if missing -- the emulator still works.
+    uintptr_t glyphAddr = resolveRva("glyph_run_draw", sig::glyph_run_draw_rva, sig::glyph_run_draw_verify);
+    if (glyphAddr)
+        createHookAt("glyph_run_draw", glyphAddr, (void*)&hook_glyphrun, reinterpret_cast<void**>(&orig_glyphrun));
 
     // Emulator E3: subclass the game window for live keyboard input (inert until
     // emu mode is on). Not fatal if the window isn't found.
