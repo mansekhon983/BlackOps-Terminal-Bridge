@@ -199,29 +199,6 @@ DWORD        g_revealLast  = 0;  // timeGetTime() at the last pump (0 = uninit)
 DWORD        g_instantUntil = 0; // feed instantly (no typewriter) until this time
 bool         g_instantAll  = false; // Ctrl+\ toggles: force instant reveal (no typewriter)
 
-// ANSI colour index (0..15) -> engine palette high-nibble. Palette mapped live
-// (Ctrl+J test): nibble 0 (the default slot) = white, nibble 2 = black, and
-// nibbles 3..8 = red/green/yellow/blue/magenta/cyan; 9..F also render white.
-// So white IS available (nibble 0) -- the game's own native terminal uses it.
-// The mapping is direct; ANSI white -> engine white (no green hack). ANSI black
-// (and bright-black / dark-gray, which folds here via & 7) maps to engine WHITE, not
-// black: the background is always black, so black/dark-gray foreground would be
-// invisible -- this is exactly PSReadLine's `-parameter` dark-gray (ESC[90m), which
-// otherwise vanishes. Bright variants (8..15) fold onto their base via & 7.
-uint8_t ansiToEngine(uint8_t ansi) {
-    static const uint8_t map[8] = {
-        0,  // 0 black/dark-gray -> engine 0 (white) so it's visible on black bg
-        3,  // 1 red     -> engine 3
-        4,  // 2 green   -> engine 4
-        5,  // 3 yellow  -> engine 5
-        6,  // 4 blue    -> engine 6
-        7,  // 5 magenta -> engine 7
-        8,  // 6 cyan    -> engine 8
-        0,  // 7 white   -> engine 0 (default/white)
-    };
-    return map[ansi & 7];
-}
-
 // Blit the grid model into the engine char/attr grids.
 //
 // Two engine quirks shape this (both confirmed from the decompiled renderer
@@ -244,54 +221,47 @@ uint8_t ansiToEngine(uint8_t ansi) {
 //     the PREVIOUS segment's colour -- always != this segment's colour (adjacent
 //     segments differ by definition), and it makes the boundary cell that the
 //     run-drawer "steals" from the next segment land on the correct colour.
+// Per-cell true 24-bit foreground for the current frame (0x00RRGGBB, or kDefaultFg).
+// Written by emuBlit (main thread); read by hook_glyphrun during the same frame's render
+// to colour each run, bypassing the engine's 8-slot palette. Same thread, sequential.
+uint32_t g_trueRGB[sig::grid_rows][sig::grid_cols];
+
 void emuBlit() {
     if (!g_moduleBase) return;
     char* gch = gridChars();
     char* gat = gridAttrs();
 
     std::lock_guard<std::mutex> lk(g_screen.mtx);
-    // ONE display model for everything (cmd and Claude): a `kEmuDisplayRows` window
-    // over the history++grid buffer, anchored to the bottom-most non-blank row. Because
-    // the grid is tall (kEmuGridRows) Claude emits its whole response into it; the
-    // anchor auto-follows the newest line (scrolls down like real Claude Code) and
-    // collapses any trailing blank region below the input. PgUp slides the window up.
+    // ONE display model for everything (cmd and Claude): a `kEmuDisplayRows` window over
+    // the history++grid buffer, anchored to the bottom-most non-blank row. The tall grid
+    // holds Claude's full render; the anchor auto-follows the newest line and collapses
+    // trailing blanks. PgUp/wheel slide the window up.
     g_screen.updateViewAnchor();
     const int cols = g_screen.cols();   // 80
     const bool scrolled = g_screen.viewOffset() > 0;   // scroll-back review
 
-    // First pass: glyphs into the engine char grid + the desired engine colour per
-    // cell into a parallel buffer (attrs are assigned afterwards by the filler
-    // scheme, which needs to see whole colour segments). Spaces are invisible, so
-    // each space inherits the colour of the preceding glyph: this extends a lone
-    // coloured char (e.g. a 1-cell "|" border) across the following space into a
-    // 2-cell segment, which the filler scheme CAN colour correctly (the engine
-    // can't isolate a single-cell run). Leading spaces keep the default colour.
-    static uint8_t hicol[sig::grid_rows][sig::grid_cols];
+    // First pass: glyphs + the true 24-bit fg per cell. Spaces inherit the preceding
+    // glyph's fg so a lone coloured char extends across following spaces into one colour
+    // segment (leading spaces keep the default).
     for (int r = 0; r < sig::grid_rows; ++r) {
         char* row = gch + r * sig::grid_cols;
-        uint8_t lastCol = 0;   // colour carried across spaces (default for leading)
+        uint32_t lastFg = grid::kDefaultFg;
         for (int c = 0; c < sig::grid_cols; ++c) {
             if (r < kEmuDisplayRows && c < cols) {
                 const grid::Cell& cell = g_screen.viewAt(r, c);
                 char ch = cell.ch ? cell.ch : ' ';
                 row[c] = ch;
-                if (ch == ' ') {
-                    hicol[r][c] = lastCol;
-                } else {
-                    uint8_t hi = ansiToEngine(cell.color);
-                    hicol[r][c] = hi;
-                    lastCol = hi;
-                }
+                if (ch == ' ') { g_trueRGB[r][c] = lastFg; }
+                else           { g_trueRGB[r][c] = cell.fg; lastFg = cell.fg; }
             } else {
                 row[c] = ' ';
-                hicol[r][c] = lastCol;
+                g_trueRGB[r][c] = lastFg;
             }
         }
     }
 
-    // Scrollbar thumb geometry (drawn per-row in the second pass so blank/track rows stay
-    // NUL-at-0 and cost no vertex budget). A proportional thumb in col 78 marks where the
-    // 27-row window sits in the compacted sequence; shown only when content overflows.
+    // Scrollbar thumb geometry (thumb only, so blank/track rows stay NUL-at-0 = free
+    // vertex budget). A proportional thumb in col 78 marks where the window sits.
     const int seqLen  = g_screen.viewSeqLen();
     const bool sbOn   = seqLen > kEmuDisplayRows;
     int thumbTop = 0, thumbLen = 0;
@@ -299,16 +269,27 @@ void emuBlit() {
         thumbLen = kEmuDisplayRows * kEmuDisplayRows / seqLen;
         if (thumbLen < 2) thumbLen = 2;
         if (thumbLen > kEmuDisplayRows) thumbLen = kEmuDisplayRows;
-        int span  = kEmuDisplayRows - thumbLen;   // rows the thumb top can occupy
-        int denom = seqLen - kEmuDisplayRows;      // max viewTop
+        int span  = kEmuDisplayRows - thumbLen;
+        int denom = seqLen - kEmuDisplayRows;
         thumbTop  = denom > 0 ? g_screen.viewTop() * span / denom : 0;
         if (thumbTop < 0) thumbTop = 0;
         if (thumbTop > span) thumbTop = span;
     }
 
-    // Blinking caret at the cursor, hidden while reviewing scroll-back. ~1 Hz off the
-    // system tick; on a glyph it blinks the glyph itself (the closest a one-glyph-per-
-    // cell, fg-only grid gets to a block).
+    // Thumb: recolour col 78 on thumb rows (cyan, or blue over a cyan cell), preserving the
+    // glyph (blank -> a '#' bar). The colour rides the same true-fg path (the hook renders
+    // it); the distinct fg just needs to break a run there.
+    if (sbOn) {
+        for (int r = thumbTop; r < thumbTop + thumbLen && r < kEmuDisplayRows; ++r) {
+            char* row = gch + r * sig::grid_cols;
+            uint32_t u = g_trueRGB[r][kThumbCol];
+            bool cyanish = ((u >> 16 & 0xFF) < 0x40) && ((u >> 8 & 0xFF) > 0xA0) && ((u & 0xFF) > 0xA0);
+            g_trueRGB[r][kThumbCol] = cyanish ? 0x5C5CFFu : 0x00FFFFu;
+            if (row[kThumbCol] == ' ' || row[kThumbCol] == '\0') row[kThumbCol] = '#';
+        }
+    }
+
+    // Blinking caret at the cursor (glyph only), hidden while reviewing scroll-back.
     if (!scrolled) {
         int cr = g_screen.cursorVisibleRow();
         int cc = g_screen.curCol();
@@ -318,48 +299,42 @@ void emuBlit() {
             if (gch[gidx] == ' ' || gch[gidx] == '\0') {
                 gch[gidx] = blinkOn ? '_' : ' ';
             } else if (!blinkOn) {
-                gch[gidx] = ' ';                 // glyph blinks off
+                gch[gidx] = ' ';
             }
         }
     }
 
-    // Second pass per row: mark the scrollbar thumb (recolour the right edge, preserving
-    // the glyph), assign attrs via the filler scheme over [0..last], and NUL-terminate the
-    // rest. The terminating NUL cell's attr carries the last drawn colour so a real-colour
-    // glyph at the right edge renders correctly (neutralises the run-colour off-by-one
-    // without a guard column). Col 79 is ALWAYS NUL; blank rows end NUL-at-0 (zero cost).
-    const uint8_t kCyan = ansiToEngine(6);
-    const uint8_t kBlue = ansiToEngine(4);
+    // Run-id per cell: a nibble that changes whenever the true fg changes, cycling 1..7 so
+    // adjacent segments differ. This makes the engine break runs exactly at colour
+    // boundaries; the filler scheme below aligns each run to its segment (so the run-colour
+    // off-by-one is harmless) and hook_glyphrun colours each run from g_trueRGB.
+    static uint8_t hicol[sig::grid_rows][sig::grid_cols];
+    for (int r = 0; r < sig::grid_rows; ++r) {
+        uint8_t nib = 0; uint32_t prev = 0xFFFFFFFEu;   // impossible fg
+        for (int c = 0; c < sig::grid_cols; ++c) {
+            if (g_trueRGB[r][c] != prev) { nib = static_cast<uint8_t>((nib % 7) + 1); prev = g_trueRGB[r][c]; }
+            hicol[r][c] = nib;
+        }
+    }
+
+    // Second pass: filler scheme over the run-ids -> attr bytes (aligns each engine run to a
+    // colour segment); NUL-terminate the trailing region. Col 79 is ALWAYS NUL; blank rows
+    // end NUL-at-0 (zero vertex cost). Colours are applied in the hook, not here.
     for (int r = 0; r < sig::grid_rows; ++r) {
         char* row = gch + r * sig::grid_cols;
         char* att = gat + r * sig::grid_cols;
 
-        // Rightmost real glyph within the content region (cols 0..kContentCols-1).
         int lastGlyph = -1;
         for (int c = 0; c < kContentCols; ++c)
             if (row[c] != ' ' && row[c] != '\0') lastGlyph = c;
 
         int last;
-        uint8_t guard;              // colour written into the terminating NUL cell's attr
         const bool thumbRow = sbOn && r >= thumbTop && r < thumbTop + thumbLen;
-        if (thumbRow) {
-            // Recolour the rightmost column (78) as the thumb, preserving its glyph. Cyan,
-            // or blue if that cell is already cyan so the thumb stays distinct. A blank
-            // cell gets a bar so the thumb is visible even with no text there.
-            uint8_t tc = (hicol[r][kThumbCol] == kCyan) ? kBlue : kCyan;
-            hicol[r][kThumbCol] = tc;
-            if (row[kThumbCol] == ' ' || row[kThumbCol] == '\0') row[kThumbCol] = '#';
-            last  = kThumbCol;
-            guard = tc;
-        } else if (lastGlyph >= 0) {
-            last  = lastGlyph;
-            guard = hicol[r][lastGlyph];   // NUL-cell attr keeps the edge colour correct
-        } else {
-            last  = -1;                    // blank row -> NUL at col 0 (cheap)
-            guard = 0;
-        }
+        if (thumbRow)            last = kThumbCol;
+        else if (lastGlyph >= 0) last = lastGlyph;
+        else                     last = -1;
 
-        uint8_t prev = 0xFF;        // previous segment's colour (none yet)
+        uint8_t prev = 0xFF;        // previous segment's run-id (none yet)
         int segStart = 0;
         for (int c = 0; c <= last; ++c) {
             if (c == last || hicol[r][c + 1] != hicol[r][c]) {
@@ -371,10 +346,7 @@ void emuBlit() {
                 segStart = c + 1;
             }
         }
-        for (int c = last + 1; c < sig::grid_cols; ++c) {
-            row[c] = '\0';
-            att[c] = static_cast<char>(((c == last + 1 ? guard : 0) << 4) | 1);
-        }
+        for (int c = last + 1; c < sig::grid_cols; ++c) { row[c] = '\0'; att[c] = (0 << 4) | 1; }
     }
 }
 
@@ -785,9 +757,32 @@ GlyphRunDraw_t orig_glyphrun = nullptr;
 void __cdecl hook_glyphrun(uint32_t p1, uint32_t p2, uint32_t p3, uint32_t p4,
                            float p5, float p6, uint32_t p7, uint32_t p8,
                            uint32_t p9, uint32_t p10, uint32_t p11) {
-    if (g_emuMode && g_moduleBase &&
-        p2 == static_cast<uint32_t>(g_moduleBase + sig::native_input_rva)) {
-        return;  // skip the game's native input line over our grid
+    if (g_emuMode && g_moduleBase) {
+        if (p2 == static_cast<uint32_t>(g_moduleBase + sig::native_input_rva))
+            return;  // skip the game's native input line over our grid
+
+        // True-colour override: p2 is the run's text ptr into our grid; p10 is the RGBA
+        // float[4] the engine resolved from its 8-slot palette. Look up the run's true fg
+        // (from its first cell) and substitute it, so we're not limited to 8 colours. The
+        // engine copies the colour synchronously in this call, so a stack array is safe.
+        uint32_t gridBase = static_cast<uint32_t>(g_moduleBase + sig::grid_chars_rva);
+        uint32_t end = gridBase + sig::grid_rows * sig::grid_cols;
+        if (p2 >= gridBase && p2 < end) {
+            uint32_t off = p2 - gridBase;
+            int row = off / sig::grid_cols, col = off % sig::grid_cols;
+            uint32_t fg = g_trueRGB[row][col];
+            uint32_t rgb = (fg == grid::kDefaultFg) ? 0xFFFFFFu : (fg & 0xFFFFFFu);
+            if ((rgb & 0xFFFFFFu) == 0) rgb = 0xFFFFFFu;   // never invisible black-on-black
+            const float* o = reinterpret_cast<const float*>(p10);
+            float col4[4] = { ((rgb >> 16) & 0xFF) / 255.0f,
+                              ((rgb >> 8)  & 0xFF) / 255.0f,
+                              ( rgb        & 0xFF) / 255.0f,
+                              o ? o[3] : 1.0f };
+            if (orig_glyphrun)
+                orig_glyphrun(p1, p2, p3, p4, p5, p6, p7, p8, p9,
+                              static_cast<uint32_t>(reinterpret_cast<uintptr_t>(col4)), p11);
+            return;
+        }
     }
     if (orig_glyphrun)
         orig_glyphrun(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11);

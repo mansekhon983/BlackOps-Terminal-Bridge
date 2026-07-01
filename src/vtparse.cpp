@@ -40,6 +40,22 @@ inline uint8_t xterm256ToAnsi8(int n) {
     return rgbToAnsi8(r * 51, g * 51, b * 51);
 }
 
+// --- true 24-bit colour (rendered via the glyph-draw hook, not the 8-slot palette) ---
+// Standard xterm ANSI-16 RGB (0..7 normal, 8..15 bright).
+static const uint32_t kAnsi16[16] = {
+    0x000000, 0xcd0000, 0x00cd00, 0xcdcd00, 0x0000ee, 0xcd00cd, 0x00cdcd, 0xe5e5e5,
+    0x7f7f7f, 0xff0000, 0x00ff00, 0xffff00, 0x5c5cff, 0xff00ff, 0x00ffff, 0xffffff,
+};
+// xterm-256 index -> 0x00RRGGBB.
+inline uint32_t xterm256ToRgb(int n) {
+    if (n < 16)  return kAnsi16[n & 15];
+    if (n >= 232){ int v = 8 + (n - 232) * 10; return (v << 16) | (v << 8) | v; }
+    n -= 16;
+    int r = (n / 36) % 6, g = (n / 6) % 6, b = n % 6;
+    auto cv = [](int x) { return x ? 55 + x * 40 : 0; };   // 0,95,135,175,215,255
+    return (cv(r) << 16) | (cv(g) << 8) | cv(b);
+}
+
 // Map a Unicode codepoint to a single engine glyph. The BO1 font is Latin-1
 // (ISO-8859-1): 0x20..0x7E ASCII, 0xA0..0xFF the Latin-1 supplement (accented letters +
 // symbols); 0x7F and 0x80..0x9F have NO glyph (must not be emitted). Box-drawing/blocks
@@ -234,18 +250,23 @@ void Parser::applySgr() {
         else if (p == 1)            { bright = true; }
         else if (p == 22)           { bright = false; }
         else if (p == 39)           { scr_.resetColor(); }
-        else if (p >= 30 && p <= 37){ scr_.setColor(ansiFg(p) + (bright ? 8 : 0)); }
-        else if (p >= 90 && p <= 97){ scr_.setColor(static_cast<uint8_t>(p - 90 + 8)); }
+        else if (p >= 30 && p <= 37){ uint8_t idx = ansiFg(p) + (bright ? 8 : 0);
+                                      scr_.setColor(idx); scr_.setFg(kAnsi16[idx & 15]); }
+        else if (p >= 90 && p <= 97){ uint8_t idx = static_cast<uint8_t>(p - 90 + 8);
+                                      scr_.setColor(idx); scr_.setFg(kAnsi16[idx & 15]); }
         else if (p == 38 || p == 48) {
-            // Extended colour: 38/48 ;5;n (256) or ;2;r;g;b (truecolour).
-            // Foreground (38) is mapped to nearest ANSI; background (48) is
-            // consumed but ignored (engine cell stores foreground only).
+            // Extended colour: 38/48 ;5;n (256) or ;2;r;g;b (truecolour). Foreground (38)
+            // sets both the true 24-bit fg (used by the render hook) and a nearest-ANSI
+            // legacy index; background (48) is consumed but ignored (fg only).
             bool fg = (p == 38);
             if (i + 2 < nargs && params_[i + 1] == 5) {
-                if (fg) scr_.setColor(xterm256ToAnsi8(params_[i + 2]));
+                if (fg) { scr_.setColor(xterm256ToAnsi8(params_[i + 2]));
+                          scr_.setFg(xterm256ToRgb(params_[i + 2])); }
                 i += 2;
             } else if (i + 4 < nargs && params_[i + 1] == 2) {
-                if (fg) scr_.setColor(rgbToAnsi8(params_[i + 2], params_[i + 3], params_[i + 4]));
+                int r = params_[i + 2], g = params_[i + 3], b = params_[i + 4];
+                if (fg) { scr_.setColor(rgbToAnsi8(r, g, b));
+                          scr_.setFg(static_cast<uint32_t>((r << 16) | (g << 8) | b)); }
                 i += 4;
             } else if (i + 1 < nargs) {
                 i += 1;     // malformed; skip the subtype param

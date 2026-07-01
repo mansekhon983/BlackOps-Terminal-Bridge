@@ -19,6 +19,7 @@ void Screen::init(int cols, int rows) {
     scrollTop_ = 0;
     scrollBot_ = rows_ - 1;
     color_ = scolor_ = kDefaultColor;
+    fg_ = sfg_ = kDefaultFg;
     altScreen_ = false;
     viewOffset_ = 0;
     produced_ = 0;
@@ -30,6 +31,7 @@ void Screen::clearCell(int row, int col) {
     Cell& c = cells_[row * cols_ + col];
     c.ch = ' ';
     c.color = kDefaultColor;
+    c.fg = kDefaultFg;
 }
 
 void Screen::clampCursor() {
@@ -52,8 +54,8 @@ void Screen::rowAbsolute(int row) {
     if (row < cy_) repaint_ = true;
     cy_ = row; wrapPending_ = false; clampCursor();
 }
-void Screen::saveCursor()    { scx_ = cx_; scy_ = cy_; scolor_ = color_; }
-void Screen::restoreCursor() { cx_ = scx_; cy_ = scy_; color_ = scolor_; wrapPending_ = false; clampCursor(); }
+void Screen::saveCursor()    { scx_ = cx_; scy_ = cy_; scolor_ = color_; sfg_ = fg_; }
+void Screen::restoreCursor() { cx_ = scx_; cy_ = scy_; color_ = scolor_; fg_ = sfg_; wrapPending_ = false; clampCursor(); }
 
 // ---- text -------------------------------------------------------------------
 void Screen::putChar(char c) {
@@ -64,6 +66,7 @@ void Screen::putChar(char c) {
     Cell& cell = cells_[cy_ * cols_ + cx_];
     cell.ch = c;
     cell.color = color_;
+    cell.fg = fg_;
     ++produced_;                                  // one revealed glyph (for the pump)
     if (cx_ + 1 >= cols_) wrapPending_ = true;    // at right margin: defer the wrap
     else ++cx_;
@@ -111,7 +114,7 @@ void Screen::eraseInDisplay(int mode) {
         return;
     }
     if (mode == 2) {                      // whole screen + home
-        for (int i = 0; i < cols_ * rows_; ++i) { cells_[i].ch = ' '; cells_[i].color = kDefaultColor; }
+        for (int i = 0; i < cols_ * rows_; ++i) { cells_[i].ch = ' '; cells_[i].color = kDefaultColor; cells_[i].fg = kDefaultFg; }
         cx_ = cy_ = 0;
         wrapPending_ = false;
         // ED2 (clear whole screen) drops the scroll-back too -- but NOT inside a

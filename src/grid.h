@@ -14,9 +14,14 @@
 
 namespace grid {
 
+// fg holds the true 24-bit foreground (0x00RRGGBB); this sentinel means "terminal
+// default" (rendered as the engine's default white). Real white is 0x00FFFFFF, distinct.
+constexpr uint32_t kDefaultFg = 0xFF000000u;
+
 struct Cell {
-    char    ch    = ' ';
-    uint8_t color = 7;   // ANSI white = default foreground
+    char     ch    = ' ';
+    uint8_t  color = 7;          // ANSI index (legacy; blit now colours via fg)
+    uint32_t fg    = kDefaultFg; // true 24-bit foreground, or kDefaultFg
 };
 
 class Screen {
@@ -73,7 +78,8 @@ public:
 
     // attributes
     void setColor(uint8_t c) { color_ = c; }
-    void resetColor()        { color_ = kDefaultColor; }
+    void setFg(uint32_t rgb) { fg_ = rgb; }
+    void resetColor()        { color_ = kDefaultColor; fg_ = kDefaultFg; }
 
     // scroll region (DECSTBM); defaults to the whole screen
     void setScrollRegion(int top, int bottom);
@@ -135,6 +141,8 @@ private:
     int scx_ = 0, scy_ = 0;             // saved cursor
     uint8_t color_ = kDefaultColor;
     uint8_t scolor_ = kDefaultColor;    // saved colour
+    uint32_t fg_ = kDefaultFg;          // current true fg (see setFg)
+    uint32_t sfg_ = kDefaultFg;         // saved true fg
     bool altScreen_ = false;
     int viewOffset_ = 0;
     uint64_t produced_ = 0;             // glyph cells written (see produced())
