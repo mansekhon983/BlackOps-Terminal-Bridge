@@ -8,7 +8,7 @@ Bridge the **Call of Duty: Black Ops (2010, "BO1")** in-game easter-egg terminal
 
 The goal is authenticity: the work happens *inside the real game process*, not in a look-alike. (A standalone themed terminal was explicitly considered and rejected.)
 
-**Status: greenfield.** No code exists yet; nothing in this repo is built. Start at Milestone 0 below.
+**Status: working.** The full loop is live: a ConPTY-backed terminal emulator runs a real host shell (PowerShell by default) *inside* the game's own terminal grid, with an 8000-line scrollback, mouse-wheel + visual scrollbar, Latin-1 codepage, and 24-bit truecolor. Claude Code itself runs and renders in-game. See the **Status** notes in `notes/re-log.md` and the memory file for the detailed history. Milestones M0–M4 below are all complete.
 
 ## The target (facts + assumptions)
 
