@@ -89,13 +89,37 @@ public:
     size_t historySize() const { return history_.size(); }
     int    clearCount()  const { return clearCount_; }
     size_t historyMax()  const { return historyMax_; }
+    const std::deque<std::vector<Cell>>& historyBuf() const { return history_; }
+
+    // Tall viewport: the engine only shows `displayRows` rows, but the grid (and
+    // PTY) can be taller. The visible window is `displayRows` consecutive rows of
+    // the combined (history ++ grid) buffer, anchored to keep the cursor visible
+    // (live) or slid up by viewOffset. Lets PgUp page through a repaint-style TUI
+    // (Claude) whose layout is taller than the 27 visible rows. Default = rows().
+    void setDisplayRows(int d) { displayRows_ = (d > 0 && d <= rows_) ? d : rows_; }
+    int  displayRows() const { return displayRows_; }
+    // Rebuild the compacted view sequence (call once per blit, under mtx). The display
+    // is a window over `history_ ++ grid` with long runs of blank rows collapsed to a
+    // single blank, so a repaint TUI (Claude) that pins its input far below its content
+    // (leaving a huge blank gap) shows content-tail + input together with no gap, and
+    // cmd (no gaps) is unaffected. Anchors to the bottom when content overflows.
+    void updateViewAnchor();              // == buildView(); name kept for call sites
+    int  viewTop() const { return viewTop_; }  // top index into the compacted sequence
+    int  viewSeqLen() const { return static_cast<int>(viewRows_.size()); }  // compacted length
+    int  viewLiveTop() const { return liveTop_; }   // live (bottom-anchored) top index
+    int  cursorVisibleRow() const;        // cursor's display row, or -1 if off-window
+
+    // Whether a repaint TUI is currently active (set each frame by the host from the
+    // instant-mode signal). Gates the ED2 scroll-back clear: a clear is a real `cls`
+    // only when NOT in a TUI.
+    void setTuiActive(bool b) { tuiActive_ = b; }
 
     // scroll-back view (call under mtx). viewOffset 0 = live bottom.
     void scrollViewUp(int n);
     void scrollViewDown(int n);
     void scrollToLive() { viewOffset_ = 0; }
     int  viewOffset() const { return viewOffset_; }
-    const Cell& viewAt(int vrow, int col) const;   // resolve a visible row via history
+    const Cell& viewAt(int dRow, int col) const;   // resolve a visible display row
 
     std::mutex mtx;
 
@@ -104,6 +128,7 @@ private:
     void clampCursor();
 
     int cols_ = 80, rows_ = 20;
+    int displayRows_ = 20;             // visible window height (<= rows_); see setDisplayRows
     int cx_ = 0, cy_ = 0;
     bool wrapPending_ = false;          // deferred wrap at right margin (DECAWM)
     int scrollTop_ = 0, scrollBot_ = 19;
@@ -114,18 +139,21 @@ private:
     int viewOffset_ = 0;
     uint64_t produced_ = 0;             // glyph cells written (see produced())
     bool repaint_ = false;             // cursor moved up since last clearRepaint()
-    // cls detection: cmd's `cls` (via ConPTY) clears by erasing each line and
-    // scrolling -- ESC[H then ~screen-height of (EL, CR, LF) -- never ED2/ED3. We
-    // count consecutive blank erase-then-linefeed steps; a near-full-screen run
-    // means a clear, so we drop the scroll-back (else scrolling up shows the
-    // pre-cls output). Any printable or absolute cursor move breaks the run.
-    bool lastWasEL_  = false;
-    int  clearStreak_ = 0;
-    int  clearCount_ = 0;              // diag: times cls-detector cleared history
+    int  clearCount_ = 0;              // diag: times a clear dropped history
     size_t historyMax_ = 0;           // diag: peak history depth
     std::vector<Cell> cells_;
-    std::deque<std::vector<Cell>> history_;   // rows scrolled off the top
-    static const size_t kMaxHistory = 1000;
+    std::deque<std::vector<Cell>> history_;   // rows scrolled off the top (cmd path)
+    static const size_t kMaxHistory = 8000;
+
+    // Compacted view sequence, rebuilt each blit by updateViewAnchor()/buildView().
+    // Each entry points to a cols_-wide row (a grid row, a history row, or blankRow_).
+    std::vector<const Cell*> viewRows_;
+    std::vector<Cell> blankRow_;              // one blank row, referenced for gap fillers
+    int cursorSeqPos_ = -1;                   // cursor's index in viewRows_ (-1 = collapsed)
+    int viewTop_ = 0;                         // top compacted-seq index of the display
+    int liveTop_ = 0;                         // compacted-seq index of the live (bottom) top
+
+    bool tuiActive_ = false;                  // repaint TUI active (gates the ED2 clear)
 };
 
 }  // namespace grid

@@ -40,10 +40,18 @@ inline uint8_t xterm256ToAnsi8(int n) {
     return rgbToAnsi8(r * 51, g * 51, b * 51);
 }
 
-// Map a non-ASCII Unicode codepoint to a single ASCII cell (BO1 font is ASCII).
-// One cell per codepoint keeps grid alignment intact.
+// Map a Unicode codepoint to a single engine glyph. The BO1 font is Latin-1
+// (ISO-8859-1): 0x20..0x7E ASCII, 0xA0..0xFF the Latin-1 supplement (accented letters +
+// symbols); 0x7F and 0x80..0x9F have NO glyph (must not be emitted). Box-drawing/blocks
+// are NOT in the font, so those stay ASCII approximations. One cell per codepoint keeps
+// grid alignment intact.
 inline char mapCodepoint(uint32_t cp) {
-    if (cp < 0x80) return static_cast<char>(cp);
+    if (cp < 0x7f) return static_cast<char>(cp);          // ASCII (0x7f has no glyph)
+    if (cp >= 0xa0 && cp <= 0xff) {            // Latin-1 supplement -> direct byte
+        if (cp == 0xa0) return ' ';            // nbsp
+        if (cp == 0xad) return '-';            // soft hyphen
+        return static_cast<char>(cp);          // accented letters + ¢£¥§©®°±µ«»¿½÷× ...
+    }
     if (cp >= 0x2500 && cp <= 0x257f) {        // box drawing
         switch (cp) {
         case 0x2502: case 0x2503: case 0x2506: case 0x2507: case 0x250a:
@@ -61,14 +69,13 @@ inline char mapCodepoint(uint32_t cp) {
     }
     if (cp >= 0x2800 && cp <= 0x28ff) return '*';   // braille (spinners)
     switch (cp) {
-    case 0x2022: return '*';                    // bullet
+    case 0x2022: return static_cast<char>(0xb7); // bullet -> Latin-1 middle dot
     case 0x2026: return '.';                    // ellipsis
     case 0x2018: case 0x2019: return '\'';      // curly single quotes
     case 0x201c: case 0x201d: return '"';       // curly double quotes
-    case 0x2013: case 0x2014: return '-';       // en/em dash
+    case 0x2013: case 0x2014: case 0x2212: return '-';  // en/em dash, minus
     case 0x2190: return '<'; case 0x2192: return '>';
     case 0x2191: return '^'; case 0x2193: return 'v';
-    case 0x00a0: return ' ';                    // nbsp
     }
     return '?';                                 // unknown -> placeholder
 }

@@ -156,8 +156,31 @@ void emuClear() {
 }
 
 // --- E2 pipeline: ConPTY child -> reader thread -> VT parser -> grid -> blit --
-// Visible terminal height confirmed in-game = 27 rows (the full engine grid, 0..26).
-const int kEmuRows = 27;
+// The engine only DISPLAYS 27 rows (the full engine grid, 0..26), but we run a
+// TALLER virtual grid + PTY so a repaint-style TUI (Claude Code) lays out across
+// more rows than fit on screen; the visible 27-row window follows the cursor and
+// PgUp/PgDn pages up/down through it (and on into the bounded scroll-back). cmd and
+// scrolling output are unaffected -- the window just tracks the cursor.
+const int kEmuDisplayRows = 27;    // engine-visible rows (== sig::grid_rows)
+const int kEmuGridRows    = 8000;  // grid == PTY height reported to apps. STEP 1 proved
+                                   // Claude clips each render to the reported height and
+                                   // repaints in place (no scrollback of its own), so a
+                                   // tall viewport is the ONLY way to retain long responses
+                                   // + conversation history; this tall grid IS Claude's
+                                   // scrollback. The 27-row display windows over it with
+                                   // large blank gaps collapsed (Screen::updateViewAnchor).
+// Right-edge (80 cols total). Col 79 is ALWAYS a NUL terminator: the glyph emitter
+// FUN_006d65c0 does strlen() per run and skips rows whose first char is NUL, so a row with
+// no NUL over-reads and each run costs strlen+0x60 bytes -- a screenful exhausts the shared
+// vertex buffer and the bottom rows get dropped. So content is 79 cols (0..78). The engine's
+// run-colour off-by-one (FUN_00575be0 colours a run by the cell that BREAKS it) is
+// neutralised WITHOUT spending a column: the terminating NUL cell's attr is set to the last
+// drawn colour (the engine reads that attr for the colour but strlen never draws the NUL).
+// The scrollbar THUMB doesn't cover text: on its rows it RECOLOURS the rightmost column (78)
+// -- cyan, or blue if that cell is already cyan -- keeping whatever glyph is there; a blank
+// thumb cell gets a bar so the thumb stays visible. Only thumb rows pay vertex budget.
+const int kThumbCol    = sig::grid_cols - 2;   // col 78 = rightmost content col = thumb marker
+const int kContentCols = sig::grid_cols - 1;   // 79 columns reported to the PTY (0..78)
 
 conpty::Session  g_pty;
 grid::Screen     g_screen;
@@ -174,17 +197,20 @@ std::mutex   g_pendMtx;
 std::string  g_pending;
 DWORD        g_revealLast  = 0;  // timeGetTime() at the last pump (0 = uninit)
 DWORD        g_instantUntil = 0; // feed instantly (no typewriter) until this time
+bool         g_instantAll  = false; // Ctrl+\ toggles: force instant reveal (no typewriter)
 
 // ANSI colour index (0..15) -> engine palette high-nibble. Palette mapped live
 // (Ctrl+J test): nibble 0 (the default slot) = white, nibble 2 = black, and
 // nibbles 3..8 = red/green/yellow/blue/magenta/cyan; 9..F also render white.
 // So white IS available (nibble 0) -- the game's own native terminal uses it.
 // The mapping is direct; ANSI white -> engine white (no green hack). ANSI black
-// maps to engine black (invisible on the black CRT, which is correct for black
-// foreground text). Bright variants (8..15) fold onto their base via & 7.
+// (and bright-black / dark-gray, which folds here via & 7) maps to engine WHITE, not
+// black: the background is always black, so black/dark-gray foreground would be
+// invisible -- this is exactly PSReadLine's `-parameter` dark-gray (ESC[90m), which
+// otherwise vanishes. Bright variants (8..15) fold onto their base via & 7.
 uint8_t ansiToEngine(uint8_t ansi) {
     static const uint8_t map[8] = {
-        2,  // 0 black   -> engine 2 (black)
+        0,  // 0 black/dark-gray -> engine 0 (white) so it's visible on black bg
         3,  // 1 red     -> engine 3
         4,  // 2 green   -> engine 4
         5,  // 3 yellow  -> engine 5
@@ -224,8 +250,14 @@ void emuBlit() {
     char* gat = gridAttrs();
 
     std::lock_guard<std::mutex> lk(g_screen.mtx);
+    // ONE display model for everything (cmd and Claude): a `kEmuDisplayRows` window
+    // over the history++grid buffer, anchored to the bottom-most non-blank row. Because
+    // the grid is tall (kEmuGridRows) Claude emits its whole response into it; the
+    // anchor auto-follows the newest line (scrolls down like real Claude Code) and
+    // collapses any trailing blank region below the input. PgUp slides the window up.
+    g_screen.updateViewAnchor();
     const int cols = g_screen.cols();   // 80
-    const bool scrolled = g_screen.viewOffset() > 0;
+    const bool scrolled = g_screen.viewOffset() > 0;   // scroll-back review
 
     // First pass: glyphs into the engine char grid + the desired engine colour per
     // cell into a parallel buffer (attrs are assigned afterwards by the filler
@@ -239,8 +271,7 @@ void emuBlit() {
         char* row = gch + r * sig::grid_cols;
         uint8_t lastCol = 0;   // colour carried across spaces (default for leading)
         for (int c = 0; c < sig::grid_cols; ++c) {
-            if (r < kEmuRows && c < cols) {
-                // viewAt resolves through the scroll-back history when scrolled up.
+            if (r < kEmuDisplayRows && c < cols) {
                 const grid::Cell& cell = g_screen.viewAt(r, c);
                 char ch = cell.ch ? cell.ch : ' ';
                 row[c] = ch;
@@ -258,13 +289,30 @@ void emuBlit() {
         }
     }
 
+    // Scrollbar thumb geometry (drawn per-row in the second pass so blank/track rows stay
+    // NUL-at-0 and cost no vertex budget). A proportional thumb in col 78 marks where the
+    // 27-row window sits in the compacted sequence; shown only when content overflows.
+    const int seqLen  = g_screen.viewSeqLen();
+    const bool sbOn   = seqLen > kEmuDisplayRows;
+    int thumbTop = 0, thumbLen = 0;
+    if (sbOn) {
+        thumbLen = kEmuDisplayRows * kEmuDisplayRows / seqLen;
+        if (thumbLen < 2) thumbLen = 2;
+        if (thumbLen > kEmuDisplayRows) thumbLen = kEmuDisplayRows;
+        int span  = kEmuDisplayRows - thumbLen;   // rows the thumb top can occupy
+        int denom = seqLen - kEmuDisplayRows;      // max viewTop
+        thumbTop  = denom > 0 ? g_screen.viewTop() * span / denom : 0;
+        if (thumbTop < 0) thumbTop = 0;
+        if (thumbTop > span) thumbTop = span;
+    }
+
+    // Blinking caret at the cursor, hidden while reviewing scroll-back. ~1 Hz off the
+    // system tick; on a glyph it blinks the glyph itself (the closest a one-glyph-per-
+    // cell, fg-only grid gets to a block).
     if (!scrolled) {
-        // Blinking caret at the cursor (only when live), ~1 Hz off the system tick.
-        // On an empty cell it blinks an underscore; on a glyph it blinks the glyph
-        // itself (visible <-> hidden) -- the closest a one-glyph-per-cell, fg-only
-        // grid gets to a block cursor, so the cursor is visible on text too.
-        int cr = g_screen.curRow(), cc = g_screen.curCol();
-        if (cr >= 0 && cr < kEmuRows && cc >= 0 && cc < sig::grid_cols) {
+        int cr = g_screen.cursorVisibleRow();
+        int cc = g_screen.curCol();
+        if (cr >= 0 && cr < kEmuDisplayRows && cc >= 0 && cc < sig::grid_cols) {
             int gidx = cr * sig::grid_cols + cc;
             bool blinkOn = ((GetTickCount() / 500) & 1) == 0;
             if (gch[gidx] == ' ' || gch[gidx] == '\0') {
@@ -275,14 +323,41 @@ void emuBlit() {
         }
     }
 
-    // Second pass per row: assign attrs via the filler scheme over [0..last] and
-    // NUL-terminate the trailing region (see quirks 1 and 2 above).
+    // Second pass per row: mark the scrollbar thumb (recolour the right edge, preserving
+    // the glyph), assign attrs via the filler scheme over [0..last], and NUL-terminate the
+    // rest. The terminating NUL cell's attr carries the last drawn colour so a real-colour
+    // glyph at the right edge renders correctly (neutralises the run-colour off-by-one
+    // without a guard column). Col 79 is ALWAYS NUL; blank rows end NUL-at-0 (zero cost).
+    const uint8_t kCyan = ansiToEngine(6);
+    const uint8_t kBlue = ansiToEngine(4);
     for (int r = 0; r < sig::grid_rows; ++r) {
         char* row = gch + r * sig::grid_cols;
         char* att = gat + r * sig::grid_cols;
-        int last = -1;
-        for (int c = 0; c < sig::grid_cols; ++c)
-            if (row[c] != ' ' && row[c] != '\0') last = c;
+
+        // Rightmost real glyph within the content region (cols 0..kContentCols-1).
+        int lastGlyph = -1;
+        for (int c = 0; c < kContentCols; ++c)
+            if (row[c] != ' ' && row[c] != '\0') lastGlyph = c;
+
+        int last;
+        uint8_t guard;              // colour written into the terminating NUL cell's attr
+        const bool thumbRow = sbOn && r >= thumbTop && r < thumbTop + thumbLen;
+        if (thumbRow) {
+            // Recolour the rightmost column (78) as the thumb, preserving its glyph. Cyan,
+            // or blue if that cell is already cyan so the thumb stays distinct. A blank
+            // cell gets a bar so the thumb is visible even with no text there.
+            uint8_t tc = (hicol[r][kThumbCol] == kCyan) ? kBlue : kCyan;
+            hicol[r][kThumbCol] = tc;
+            if (row[kThumbCol] == ' ' || row[kThumbCol] == '\0') row[kThumbCol] = '#';
+            last  = kThumbCol;
+            guard = tc;
+        } else if (lastGlyph >= 0) {
+            last  = lastGlyph;
+            guard = hicol[r][lastGlyph];   // NUL-cell attr keeps the edge colour correct
+        } else {
+            last  = -1;                    // blank row -> NUL at col 0 (cheap)
+            guard = 0;
+        }
 
         uint8_t prev = 0xFF;        // previous segment's colour (none yet)
         int segStart = 0;
@@ -298,10 +373,15 @@ void emuBlit() {
         }
         for (int c = last + 1; c < sig::grid_cols; ++c) {
             row[c] = '\0';
-            att[c] = (0 << 4) | 1;
+            att[c] = static_cast<char>(((c == last + 1 ? guard : 0) << 4) | 1);
         }
     }
 }
+
+// Diagnostic (off by default): capture raw pty bytes to a file for offline replay through
+// feed_log. Flip to true when debugging the parser/renderer against a real session.
+constexpr bool kCapturePty = false;
+static const char* kCaptureFile = "C:\\Users\\manus\\bo1_pty.log";
 
 // Reader thread: pull pty output and buffer it raw. Parsing happens on the main
 // thread in emuPump so the reveal can be metered to the engine's native rate.
@@ -310,6 +390,10 @@ void emuReaderLoop() {
     while (g_ptyRunning.load()) {
         DWORD n = g_pty.read(buf, sizeof(buf));
         if (n == 0) break;                       // pty closed
+        if (kCapturePty) {
+            FILE* f = fopen(kCaptureFile, "ab");
+            if (f) { fwrite(buf, 1, n, f); fclose(f); }
+        }
         std::lock_guard<std::mutex> lk(g_pendMtx);
         g_pending.append(buf, n);
     }
@@ -345,9 +429,12 @@ void emuPump() {
     size_t pos = 0;
     {
         std::lock_guard<std::mutex> lk(g_screen.mtx);
-        bool instant = g_screen.altScreen() ||
+        bool instant = g_instantAll || g_screen.altScreen() ||
                        static_cast<int>(g_instantUntil - now) > 0;
+        g_screen.setTuiActive(instant);     // gates the cls-detector during this feed
         if (instant) {
+            // Repaint TUI (Claude): feed the whole burst at once (no typewriter). The
+            // tall grid holds the full render; emuBlit shows the split window into it.
             g_parser->feed(chunk.data(), static_cast<int>(chunk.size()));
             pos = chunk.size();
             if (g_screen.repaint()) g_instantUntil = now + kInstantHold;
@@ -391,21 +478,65 @@ void emuPump() {
 // recognized". Launch the native 64-bit cmd via the Sysnative alias (visible
 // only to 32-bit processes) so the shell sees the real System32 and PATH stays
 // untouched. Falls back to "cmd.exe" if Sysnative isn't present.
-std::string nativeShell() {
-    char win[MAX_PATH];
-    if (GetWindowsDirectoryA(win, MAX_PATH)) {
-        std::string sysnative = std::string(win) + "\\Sysnative\\cmd.exe";
-        if (GetFileAttributesA(sysnative.c_str()) != INVALID_FILE_ATTRIBUTES)
-            return sysnative;
+// Build the shell launch command line. Default to PowerShell (per user choice): pwsh 7 if
+// installed (native UTF-8), else Windows PowerShell 5.1. Both are launched with a startup
+// script that forces UTF-8 for the console AND makes Get-Content/Set-Content default to
+// UTF-8 -- so `cat`/`gc` of a UTF-8 file renders correctly (5.1's Get-Content otherwise
+// defaults to ANSI and mojibakes; cmd's `type` mangles UTF-8 at buffer boundaries). Falls
+// back to cmd.exe (UTF-8 code page) if no PowerShell is found. 64-bit (pwsh, or 5.1 via the
+// Sysnative alias) so System32 tools (ssh) stay visible. You can still switch shells at
+// runtime by typing cmd / wsl / etc.
+std::string shellCommand() {
+    // Startup script: UTF-8 console + default UTF-8 file encodings. Single quotes inside so
+    // the whole -Command argument can sit in one double-quoted string.
+    static const char* kPsInit =
+        " -NoLogo -NoExit -Command \""
+        "[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+        "$OutputEncoding=[Text.Encoding]::UTF8;"
+        "$PSDefaultParameterValues['Get-Content:Encoding']='UTF8';"
+        "$PSDefaultParameterValues['Set-Content:Encoding']='UTF8'\"";
+
+    char buf[MAX_PATH];
+
+    // 1. PowerShell 7 (pwsh): <ProgramW6432>\PowerShell\7\pwsh.exe, else on PATH.
+    std::string pwsh;
+    DWORD n = GetEnvironmentVariableA("ProgramW6432", buf, MAX_PATH);
+    if (n > 0 && n < MAX_PATH) {
+        std::string cand = std::string(buf) + "\\PowerShell\\7\\pwsh.exe";
+        if (GetFileAttributesA(cand.c_str()) != INVALID_FILE_ATTRIBUTES) pwsh = cand;
     }
-    return "cmd.exe";
+    if (pwsh.empty()) {
+        char found[MAX_PATH];
+        if (SearchPathA(nullptr, "pwsh.exe", nullptr, MAX_PATH, found, nullptr)) pwsh = found;
+    }
+    if (!pwsh.empty()) return "\"" + pwsh + "\"" + kPsInit;
+
+    // 2. Windows PowerShell 5.1 (64-bit via Sysnative; System32 if not under WOW64).
+    if (GetWindowsDirectoryA(buf, MAX_PATH)) {
+        std::string base = buf;
+        std::string ps = base + "\\Sysnative\\WindowsPowerShell\\v1.0\\powershell.exe";
+        if (GetFileAttributesA(ps.c_str()) == INVALID_FILE_ATTRIBUTES)
+            ps = base + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+        if (GetFileAttributesA(ps.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return "\"" + ps + "\"" + kPsInit;
+    }
+
+    // 3. Last resort: cmd.exe with the UTF-8 code page.
+    if (GetWindowsDirectoryA(buf, MAX_PATH)) {
+        std::string cmd = std::string(buf) + "\\Sysnative\\cmd.exe";
+        if (GetFileAttributesA(cmd.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return "\"" + cmd + "\" /k chcp 65001>nul";
+    }
+    return "cmd.exe /k chcp 65001>nul";
 }
 
 void emuStart() {
-    g_screen.init(sig::grid_cols, kEmuRows);
+    g_screen.init(sig::grid_cols, kEmuGridRows);
+    g_screen.setDisplayRows(kEmuDisplayRows);   // engine shows 27 of the taller grid
     { std::lock_guard<std::mutex> lk(g_pendMtx); g_pending.clear(); }
     g_revealLast = 0;
     g_instantUntil = 0;
+    if (kCapturePty) { FILE* f = fopen(kCaptureFile, "wb"); if (f) fclose(f); }
     g_parser = new vt::Parser(g_screen);
     // Answer terminal queries (DSR/DA) by writing back to the pty so size
     // detection works instantly instead of stalling on a ~15s timeout.
@@ -413,9 +544,13 @@ void emuStart() {
     // Start the native 64-bit shell (see nativeShell) in the user's home dir
     // rather than the game's install folder (the child would otherwise inherit
     // BlackOps.exe's working directory).
-    std::string shell = nativeShell();
+    // Default to PowerShell with UTF-8 set up (see shellCommand) so UTF-8 files/output
+    // render correctly. Switch to any other shell at runtime by typing its name.
+    std::string shell = shellCommand();
     const char* home = getenv("USERPROFILE");
-    if (!g_pty.start(static_cast<short>(sig::grid_cols), kEmuRows, shell.c_str(), home)) {
+    // Report width kContentCols (79): apps wrap at 79, leaving only col 79 as the NUL
+    // terminator. Height = the tall grid so Claude renders its full content into it.
+    if (!g_pty.start(static_cast<short>(kContentCols), kEmuGridRows, shell.c_str(), home)) {
         logf("[emu] ConPTY start FAILED\n");
         delete g_parser; g_parser = nullptr;
         g_emuMode = false;
@@ -423,7 +558,7 @@ void emuStart() {
     }
     g_ptyRunning.store(true);
     g_ptyReader = std::thread(emuReaderLoop);
-    logf("[emu] started ConPTY %dx%d\n", sig::grid_cols, kEmuRows);
+    logf("[emu] started ConPTY %dx%d (display %d)\n", sig::grid_cols, kEmuGridRows, kEmuDisplayRows);
 }
 
 void emuStop() {
@@ -469,24 +604,43 @@ bool sendSpecialKey(WPARAM vk) {
 LRESULT CALLBACK emuWndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     if (g_emuMode) {
         switch (msg) {
+        case WM_MOUSEWHEEL: {
+            // Wheel scrolls the scroll-back window (alt-screen apps get wheel-as-arrows).
+            int notches = GET_WHEEL_DELTA_WPARAM(wp) / WHEEL_DELTA;   // +up / -down
+            std::lock_guard<std::mutex> lk(g_screen.mtx);
+            if (g_screen.altScreen()) {
+                for (int i = 0; i < abs(notches) * 3; ++i)
+                    ptyWriteStr(notches > 0 ? "\x1b[A" : "\x1b[B");
+            } else if (notches > 0) {
+                g_screen.scrollViewUp(notches * 3);
+            } else if (notches < 0) {
+                g_screen.scrollViewDown(-notches * 3);
+            }
+            return 0;
+        }
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
+            // Instant-reveal toggle: Ctrl+\  (turn the typewriter reveal on/off).
+            if (wp == VK_OEM_5 && (GetKeyState(VK_CONTROL) & 0x8000)) {
+                g_instantAll = !g_instantAll;
+                return 0;
+            }
             // Exit hotkey: Ctrl+]  (leaves emu mode; ESC then closes the terminal).
             if (wp == VK_OEM_6 && (GetKeyState(VK_CONTROL) & 0x8000)) {
                 g_emuMode = false;
                 emuStop();
                 return 0;
             }
-            // PgUp/PgDn: scroll the local scroll-back on the normal screen; pass
-            // through to the app (as VT) when an alt-screen program is running.
+            // PgUp/PgDn: alt-screen apps (vim/less) page themselves (forward VT);
+            // everything else (cmd AND Claude) scrolls the unified scroll-back window.
             if (wp == VK_PRIOR || wp == VK_NEXT) {
                 std::lock_guard<std::mutex> lk(g_screen.mtx);
                 if (g_screen.altScreen()) {
                     ptyWriteStr(wp == VK_PRIOR ? "\x1b[5~" : "\x1b[6~");
                 } else if (wp == VK_PRIOR) {
-                    g_screen.scrollViewUp(kEmuRows / 2);
+                    g_screen.scrollViewUp(kEmuDisplayRows / 2);
                 } else {
-                    g_screen.scrollViewDown(kEmuRows / 2);
+                    g_screen.scrollViewDown(kEmuDisplayRows / 2);
                 }
                 return 0;
             }

@@ -7,7 +7,12 @@ namespace grid {
 void Screen::init(int cols, int rows) {
     cols_ = cols > 0 ? cols : 80;
     rows_ = rows > 0 ? rows : 20;
+    displayRows_ = rows_;              // caller narrows the visible window via setDisplayRows
     cells_.assign(static_cast<size_t>(cols_) * rows_, Cell{});
+    blankRow_.assign(cols_, Cell{});
+    viewRows_.clear();
+    cursorSeqPos_ = -1;
+    viewTop_ = liveTop_ = 0;
     cx_ = cy_ = 0;
     scx_ = scy_ = 0;
     wrapPending_ = false;
@@ -18,8 +23,6 @@ void Screen::init(int cols, int rows) {
     viewOffset_ = 0;
     produced_ = 0;
     repaint_ = false;
-    lastWasEL_ = false;
-    clearStreak_ = 0;
     history_.clear();
 }
 
@@ -38,7 +41,6 @@ void Screen::clampCursor() {
 // Any explicit cursor movement cancels a pending right-margin wrap.
 void Screen::gotoXY(int row, int col) {
     if (row < cy_) repaint_ = true;     // absolute move upward = an app repainting
-    clearStreak_ = 0; lastWasEL_ = false;
     cy_ = row; cx_ = col; wrapPending_ = false; clampCursor();
 }
 void Screen::cursorUp(int n)    { cy_ -= std::max(1, n); wrapPending_ = false; repaint_ = true; clampCursor(); }
@@ -48,7 +50,6 @@ void Screen::cursorRight(int n) { cx_ += std::max(1, n); wrapPending_ = false; c
 void Screen::columnAbsolute(int col) { cx_ = col; wrapPending_ = false; clampCursor(); }
 void Screen::rowAbsolute(int row) {
     if (row < cy_) repaint_ = true;
-    clearStreak_ = 0; lastWasEL_ = false;
     cy_ = row; wrapPending_ = false; clampCursor();
 }
 void Screen::saveCursor()    { scx_ = cx_; scy_ = cy_; scolor_ = color_; }
@@ -64,7 +65,6 @@ void Screen::putChar(char c) {
     cell.ch = c;
     cell.color = color_;
     ++produced_;                                  // one revealed glyph (for the pump)
-    lastWasEL_ = false; clearStreak_ = 0;         // real text breaks a cls run
     if (cx_ + 1 >= cols_) wrapPending_ = true;    // at right margin: defer the wrap
     else ++cx_;
 }
@@ -73,20 +73,6 @@ void Screen::carriageReturn() { cx_ = 0; wrapPending_ = false; }
 
 void Screen::lineFeed() {
     wrapPending_ = false;
-    // cls detection: a long run of (erase-line, line-feed) with no text between
-    // is cmd's clear. On a near-full-screen run, drop the scroll-back so a later
-    // scroll up doesn't show the pre-clear output.
-    if (lastWasEL_) {
-        if (++clearStreak_ >= rows_ * 3 / 4 && !altScreen_) {
-            if (!history_.empty()) ++clearCount_;     // diag
-            history_.clear();
-            viewOffset_ = 0;
-            clearStreak_ = 0;
-        }
-    } else {
-        clearStreak_ = 0;
-    }
-    lastWasEL_ = false;
     if (cy_ >= scrollBot_) {
         scrollUp(1);              // at bottom of region -> scroll, cursor stays
     } else {
@@ -116,7 +102,6 @@ void Screen::eraseInLine(int mode) {
     else if (mode == 1) to = cx_;         // bol..cursor
     // mode 2: whole line
     for (int c = from; c <= to && c < cols_; ++c) clearCell(cy_, c);
-    lastWasEL_ = true;                    // part of a possible cls run (see lineFeed)
 }
 
 void Screen::eraseInDisplay(int mode) {
@@ -129,9 +114,15 @@ void Screen::eraseInDisplay(int mode) {
         for (int i = 0; i < cols_ * rows_; ++i) { cells_[i].ch = ' '; cells_[i].color = kDefaultColor; }
         cx_ = cy_ = 0;
         wrapPending_ = false;
-        // `clear`/`cls` should also drop the scroll-back so a later scroll up
-        // doesn't reveal pre-clear output (the normal-screen buffer only).
-        if (!altScreen_) { history_.clear(); viewOffset_ = 0; }
+        // ED2 (clear whole screen) drops the scroll-back too -- but NOT inside a
+        // repaint TUI (Claude). cmd's own `cls` uses an EL+CRLF run (not ED2), so it
+        // no longer auto-clears scroll-back -- matching how most terminals keep
+        // scrollback after clear.
+        if (!altScreen_ && !tuiActive_) {
+            if (!history_.empty()) ++clearCount_;
+            history_.clear();
+            viewOffset_ = 0;
+        }
         return;
     }
     if (mode == 0) {                      // cursor..end
@@ -234,10 +225,64 @@ void Screen::setAltScreen(bool on) {
     viewOffset_ = 0;            // never show scroll-back over an alt-screen app
 }
 
+// Build the compacted view sequence over `history_ ++ grid`, collapsing runs of blank
+// rows to a single blank. A repaint TUI (Claude) pins its input near the grid bottom
+// with its content at the top and a large blank gap between; collapsing that gap makes
+// the content-tail and the input box render together (no gap) and auto-follow as new
+// output arrives. cmd output has no internal gaps, so compaction is a no-op there.
+// The window bottom-anchors when the compacted content overflows the display, else
+// shows it from the top; viewOffset_ then slides the window up (PgUp / wheel).
+// Call once per blit, under the mutex. (Name kept for existing call sites.)
+void Screen::updateViewAnchor() {
+    if (static_cast<int>(blankRow_.size()) != cols_) blankRow_.assign(cols_, Cell{});
+    viewRows_.clear();
+    cursorSeqPos_ = -1;
+
+    auto rowBlank = [&](const Cell* row) {
+        for (int c = 0; c < cols_; ++c)
+            if (row[c].ch != ' ' && row[c].ch != '\0') return false;
+        return true;
+    };
+
+    const int H = static_cast<int>(history_.size());
+    const int total = H + rows_;
+    bool prevBlank = false;
+    for (int i = 0; i < total; ++i) {
+        const Cell* row;
+        bool isCursorRow = false;
+        if (i < H) {
+            const std::vector<Cell>& hr = history_[i];
+            row = hr.empty() ? blankRow_.data() : hr.data();
+        } else {
+            int gr = i - H;
+            row = &cells_[gr * cols_];
+            isCursorRow = (gr == cy_);
+        }
+        bool blank = rowBlank(row) && !isCursorRow;   // never collapse the cursor's row
+        if (blank && prevBlank) continue;             // collapse consecutive blanks to one
+        if (isCursorRow) cursorSeqPos_ = static_cast<int>(viewRows_.size());
+        viewRows_.push_back(blank ? blankRow_.data() : row);
+        prevBlank = blank;
+    }
+
+    const int seqLen = static_cast<int>(viewRows_.size());
+    liveTop_ = seqLen - displayRows_;
+    if (liveTop_ < 0) liveTop_ = 0;
+    if (viewOffset_ > liveTop_) viewOffset_ = liveTop_;   // clamp against fresh length
+    if (viewOffset_ < 0) viewOffset_ = 0;
+    viewTop_ = liveTop_ - viewOffset_;
+    if (viewTop_ < 0) viewTop_ = 0;
+}
+
+int Screen::cursorVisibleRow() const {
+    if (cursorSeqPos_ < 0) return -1;
+    int row = cursorSeqPos_ - viewTop_;
+    return (row >= 0 && row < displayRows_) ? row : -1;
+}
+
 void Screen::scrollViewUp(int n) {
     viewOffset_ += std::max(1, n);
-    int maxOff = static_cast<int>(history_.size());
-    if (viewOffset_ > maxOff) viewOffset_ = maxOff;
+    if (viewOffset_ > liveTop_) viewOffset_ = liveTop_;   // can't scroll above the top
 }
 
 void Screen::scrollViewDown(int n) {
@@ -245,21 +290,13 @@ void Screen::scrollViewDown(int n) {
     if (viewOffset_ < 0) viewOffset_ = 0;
 }
 
-// Resolve a visible row (0..rows_-1) through the scroll-back: the live view
-// (offset 0) is the current grid; a positive offset slides the window up into
-// history_. Combined buffer = history_ (old..new) then the live grid rows.
-const Cell& Screen::viewAt(int vrow, int col) const {
+// Resolve a visible display row (0..displayRows_-1) through the compacted sequence.
+const Cell& Screen::viewAt(int dRow, int col) const {
     static const Cell blank{};
-    int H = static_cast<int>(history_.size());
-    int combined = H - viewOffset_ + vrow;     // index into history++grid
-    if (combined < 0) return blank;
-    if (combined < H) {
-        const std::vector<Cell>& row = history_[combined];
-        return (col < static_cast<int>(row.size())) ? row[col] : blank;
-    }
-    int gr = combined - H;
-    if (gr >= rows_) return blank;
-    return cells_[gr * cols_ + col];
+    int idx = viewTop_ + dRow;
+    if (idx < 0 || idx >= static_cast<int>(viewRows_.size())) return blank;
+    if (col < 0 || col >= cols_) return blank;
+    return viewRows_[idx][col];
 }
 
 }  // namespace grid
