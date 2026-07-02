@@ -13,7 +13,7 @@ wrapping, and all. It is a full terminal emulator, so interactive programs work 
 
 ## Features
 
-- **Real shell inside the game** — By deafualt it opens Powershell 7, if u dont have that tne powershell 5.1, if u dont have that then cmd.
+- **Real shell inside the game** — By deafualt it opens Powershell 7, if you dont have that tne powershell 5.1, if you dont have that then cmd.
 - **Full terminal emulator** — ConPTY backend + a VT/ANSI parser, so TUIs (vim, htop, Claude Code) render in-game.
 - **8000-line scrollback** with mouse-wheel scrolling and a visual scrollbar (PgUp/PgDn too).
 - **24-bit truecolor** text, bypassing the engine's 8-colour palette.
