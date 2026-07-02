@@ -6,14 +6,14 @@ in the game's own terminal screen.
 
 The stock terminal is a hardcoded fake: a fixed command table, a scripted file system,
 canned responses, plus the embedded Zork and Dead Ops Arcade games. This project bolts a
-genuine host shell onto it. You type in the game; a real **PowerShell** (or cmd) runs on
+real host shell onto it. You type in the game; a real **PowerShell** (or cmd) runs on
 your PC; its output is painted back into the in-game scrollback — correct font, colours,
 wrapping, and all. It is a full terminal emulator, so interactive programs work too:
-`ssh`, the Python REPL, `vim`, and even **Claude Code** run *inside* the BlackOps terminal.
+`ssh`, the Python REPL, `vim`, and my personal goal of **Claude Code**, which I thought would be super funny ... it was, for 5 seconds.
 
 ## Features
 
-- **Real shell inside the game** — PowerShell 7 → Windows PowerShell 5.1 → cmd, auto-detected, UTF-8.
+- **Real shell inside the game** — By deafualt it opens Powershell 7, if u dont have that tne powershell 5.1, if u dont have that then cmd.
 - **Full terminal emulator** — ConPTY backend + a VT/ANSI parser, so TUIs (vim, htop, Claude Code) render in-game.
 - **8000-line scrollback** with mouse-wheel scrolling and a visual scrollbar (PgUp/PgDn too).
 - **24-bit truecolor** text, bypassing the engine's 8-colour palette.
@@ -46,7 +46,7 @@ cd BlackOps-Terminal-
 # 5. In the in-game terminal, type:  emu
 ```
 
-You're now in a real shell. Type `emu` again (or `Ctrl+]`) to leave.
+You're now in a real shell. Type `Ctrl+]` again to leave.
 
 ## In-game controls
 
@@ -59,17 +59,17 @@ You're now in a real shell. Type `emu` again (or `Ctrl+]`) to leave.
 | any keypress while scrolled | snaps back to the live bottom |
 
 There is also a lighter `connect` line-mode (one command at a time, no full emulator) if
-you just want simple output-only commands.
+you just want simple output-only commands. This was built in the begining but it's really limited in terms of what it can actually do. I left it in cause I'm lazy. (Did I say I vibecoded this whole thing?)
 
 ## ⚠️ Safety & scope
 
 - **OFFLINE / SINGLE-PLAYER ONLY.** BlackOps multiplayer ran **VAC**; injecting a DLL into a
   VAC-secured session is a ban. The terminal is a menu/campaign feature — there is no reason to
-  be online. **Turn networking off** before injecting.
+  be online. **Turn networking off** before injecting. (or ya know, sail the high seas)
 - **This runs whatever you type as a host shell command, by design.** It is a personal,
   single-machine novelty. Do not expose it over a network. If you ever add an IPC/bridge
   channel, bind it to `localhost` only.
-- `inject.exe` needs to run from an **elevated** shell (it uses `CreateRemoteThread`).
+- `run.ps1` needs to run from an **elevated** shell (it uses `CreateRemoteThread`).
 - Offsets are resolved at load time by signature/RVA against this specific build of the game;
   a game update can break them. See `notes/offsets.md`.
 
@@ -106,6 +106,9 @@ cmake --build build --config Release
 
 Outputs: `build/Release/bo1bridge.dll` and `build/Release/inject.exe`. The `-A Win32` is
 mandatory — a 64-bit DLL cannot load into the 32-bit game.
+
+## Findings
+There is a docs folder with a LaTeX report, it has some interesting info but you should know that it's deprecated. The project has evolved since that was written, use the notes folder as a reference instead.
 
 ## License
 
