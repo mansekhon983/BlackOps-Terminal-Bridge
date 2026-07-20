@@ -8,8 +8,7 @@ The stock terminal is a hardcoded fake: a fixed command table, a scripted file s
 canned responses, plus the embedded Zork and Dead Ops Arcade games. This project bolts a
 real host shell onto it. You type in the game; a real **PowerShell** (or cmd) runs on
 your PC; its output is painted back into the in-game scrollback — correct font, colours,
-wrapping, and all. It is a full terminal emulator, so interactive programs work too:
-`ssh`, the Python REPL, `vim`, and my personal goal of **Claude Code**, which I thought would be super funny ... it was, for 5 seconds.
+wrapping, and all.
 
 ## Features
 
@@ -59,13 +58,13 @@ You're now in a real shell. Type `Ctrl+]` again to leave.
 | any keypress while scrolled | snaps back to the live bottom |
 
 There is also a lighter `connect` line-mode (one command at a time, no full emulator) if
-you just want simple output-only commands. This was built in the begining but it's really limited in terms of what it can actually do. I left it in cause I'm lazy. (Did I say I vibecoded this whole thing?)
+you just want simple output-only commands. This was built in the begining but it's really limited in terms of what it can actually do.
 
 ## ⚠️ Safety & scope
 
 - **OFFLINE / SINGLE-PLAYER ONLY.** BlackOps multiplayer ran **VAC**; injecting a DLL into a
   VAC-secured session is a ban. The terminal is a menu/campaign feature — there is no reason to
-  be online. **Turn networking off** before injecting. (or ya know, sail the high seas)
+  be online. **Turn networking off** before injecting.
 - **This runs whatever you type as a host shell command, by design.** It is a personal,
   single-machine novelty. Do not expose it over a network. If you ever add an IPC/bridge
   channel, bind it to `localhost` only.
