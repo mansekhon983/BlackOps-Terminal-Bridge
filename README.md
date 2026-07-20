@@ -24,8 +24,15 @@ wrapping, and all. It is a full terminal emulator, so interactive programs work 
 ## Requirements
 
 - Windows 10/11 (x64).
-- **Call of Duty: Black Ops (2010)** installed.
+- **Call of Duty: Black Ops (2010)** installed — the **retail / Steam** `BlackOps.exe`.
 - **Visual Studio 2022** (the free Community edition is fine) with the *Desktop development with C++* workload. That's the only build dependency; CMake and MinHook are handled for you (CMake ships with VS; MinHook is fetched automatically).
+
+> **Plutonium note.** `run.ps1` auto-detects the Plutonium client's process name
+> (single-player runs as `t5sp.exe`), so injection targets the right process. However,
+> the hook offsets in `notes/offsets.md` were reverse-engineered from the **retail**
+> `BlackOps.exe`. Plutonium's `t5sp.exe` is a different build, so the signature scan may
+> not find its hook points — if so, `bo1bridge.log` shows `signature NOT FOUND` and the
+> offsets need re-deriving against `t5sp.exe`. The retail binary is the supported target.
 
 ## Quick start
 

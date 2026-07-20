@@ -1,12 +1,16 @@
 <#
 .SYNOPSIS
-  Inject the BO1 terminal bridge into a running BlackOps.exe.
+  Inject the BO1 terminal bridge into a running Black Ops process.
 
 .DESCRIPTION
   Runs inject.exe (CreateRemoteThread + LoadLibrary) to load bo1bridge.dll into
   the game. The game must ALREADY be running and OFFLINE (BO1 multiplayer used
   VAC -- injecting into a VAC session is a ban; use single-player / the campaign
   menu only). This script must be run from an ELEVATED PowerShell.
+
+  Auto-detects the game process name. Retail Steam is BlackOps.exe; the Plutonium
+  client runs single-player as t5sp.exe (the easter-egg terminal is in the SP
+  menu). Override with -Process if needed.
 
   After injecting, open the in-game easter-egg terminal and type  emu  to enter
   the real shell. Type  emu  again to leave.
@@ -17,11 +21,20 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Release', 'Debug')]
-    [string]$Config = 'Release'
+    [string]$Config = 'Release',
+    # Explicit game process name (with or without .exe). Default: auto-detect.
+    [string]$Process
 )
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
+
+# Known Black Ops (t5) process names, most-likely first. The easter-egg terminal
+# lives in the single-player menu, so the SP executable is the target.
+#   BlackOps.exe  retail / Steam
+#   t5sp.exe      Plutonium single-player
+#   t5mp.exe      Plutonium multiplayer (VAC-free under Plutonium, but SP has the terminal)
+$knownNames = @('BlackOps', 't5sp', 't5mp')
 
 # Elevation check -- CreateRemoteThread into the game needs admin.
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
@@ -38,12 +51,22 @@ if (-not (Test-Path $inj) -or -not (Test-Path $dll)) {
     throw "Missing build output. Run .\build.ps1 first (looked in build\$Config\)."
 }
 
-if (-not (Get-Process -Name BlackOps -ErrorAction SilentlyContinue)) {
-    throw "BlackOps.exe is not running. Launch the game (OFFLINE) first, then re-run."
+# Resolve the target process. Prefer an explicit -Process, else probe the known
+# names in order. Get-Process wants the name without ".exe".
+$candidates = if ($Process) { @($Process -replace '\.exe$', '') } else { $knownNames }
+$proc = $null
+foreach ($name in $candidates) {
+    if (Get-Process -Name $name -ErrorAction SilentlyContinue) { $proc = $name; break }
+}
+if (-not $proc) {
+    throw ("No Black Ops process found (looked for: {0}). Launch the game (OFFLINE) " +
+           "first, then re-run. For the Plutonium client this is t5sp.exe. If your " +
+           "build uses a different name, pass it: .\run.ps1 -Process <name>.") -f ($candidates -join ', ')
 }
 
-Write-Host "[run] injecting $dll" -ForegroundColor Cyan
-& $inj "BlackOps.exe" $dll
+$target = "$proc.exe"
+Write-Host "[run] target=$target  injecting $dll" -ForegroundColor Cyan
+& $inj $target $dll
 if ($LASTEXITCODE -ne 0) { throw "injection failed (see message above)" }
 
 Write-Host ""
