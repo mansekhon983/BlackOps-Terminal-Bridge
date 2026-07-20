@@ -895,9 +895,7 @@ bool createHookAt(const char* name, uintptr_t addr, void* detour, void** orig) {
 template <typename T>
 bool createHook(const char* name, const char* pattern, void* detour, T& orig) {
     if (!pattern) { logf("[hooks] %s: no signature, skipped\n", name); return false; }
-    // Scan the main executable by handle (nullptr), not by a hardcoded name:
-    // retail is BlackOps.exe but the Plutonium client runs it as t5sp.exe.
-    uintptr_t addr = sigscan::findInModule(nullptr, pattern);
+    uintptr_t addr = sigscan::findInModule("BlackOps.exe", pattern);
     if (!addr) { logf("[hooks] %s: signature NOT FOUND\n", name); return false; }
     return createHookAt(name, addr, detour, reinterpret_cast<void**>(&orig));
 }
@@ -917,11 +915,7 @@ uintptr_t resolveRva(const char* name, uintptr_t rva, const char* verify) {
 namespace hooks {
 
 bool install() {
-    // Main-module base by handle (nullptr) -- works whether the exe is named
-    // BlackOps.exe (retail) or t5sp.exe (Plutonium). NB: the RVA-based offsets
-    // below were derived from the retail binary; a different build (Plutonium)
-    // may not match and the sig/prologue checks will simply report NOT FOUND.
-    g_moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+    g_moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandleA("BlackOps.exe"));
 
     if (MH_Initialize() != MH_OK) {
         logf("[hooks] MH_Initialize failed\n");
