@@ -12,7 +12,7 @@ wrapping, and all.
 
 ## Features
 
-- **Real shell inside the game** — By deafualt it opens Powershell 7, if you dont have that tne powershell 5.1, if you dont have that then cmd.
+- **Real shell inside the game** — opens PowerShell 7 by default, falling back to Windows PowerShell 5.1, then `cmd.exe`.
 - **Full terminal emulator** — ConPTY backend + a VT/ANSI parser, so TUIs (vim, htop, Claude Code) render in-game.
 - **8000-line scrollback** with mouse-wheel scrolling and a visual scrollbar (PgUp/PgDn too).
 - **24-bit truecolor** text, bypassing the engine's 8-colour palette.
@@ -30,8 +30,8 @@ wrapping, and all.
 
 ```powershell
 # 1. Get the code
-git clone https://github.com/mansekhon983/BlackOps-Terminal-.git
-cd BlackOps-Terminal-
+git clone https://github.com/mansekhon983/BlackOps-Terminal-Bridge.git
+cd BlackOps-Terminal-Bridge
 
 # 2. Build (32-bit, to match BlackOps.exe)
 .\build.ps1
@@ -58,7 +58,8 @@ You're now in a real shell. Type `Ctrl+]` again to leave.
 | any keypress while scrolled | snaps back to the live bottom |
 
 There is also a lighter `connect` line-mode (one command at a time, no full emulator) if
-you just want simple output-only commands. This was built in the begining but it's really limited in terms of what it can actually do.
+you just want simple output-only commands. This was built at the beginning of the project and is
+much more limited than the full emulator.
 
 ## ⚠️ Safety & scope
 
@@ -82,7 +83,7 @@ an 80×27 screen model with an 8000-line scrollback, which is blitted into the e
 character/attribute grids each frame. All engine calls happen on the main thread via the frame hook.
 
 Full architecture, the reverse-engineering log, and confirmed offsets are in `notes/` and
-`docs/report.tex`. The project instructions live in `CLAUDE.md`.
+`docs/report.tex`.
 
 ## Repository layout
 
@@ -111,4 +112,5 @@ There is a docs folder with a LaTeX report, it has some interesting info but you
 
 ## License
 
-Personal/novelty project provided as-is, for offline single-player use. No warranty.
+[MIT](LICENSE). A personal/novelty project provided as-is, for offline single-player use.
+No warranty.

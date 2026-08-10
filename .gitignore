@@ -17,3 +17,7 @@ Black_Ops.rep/
 .idea/
 *.user
 Thumbs.db
+
+# Local agent instructions (kept out of the published repo)
+CLAUDE.md
+.claude/
