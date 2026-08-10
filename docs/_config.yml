@@ -1,0 +1,6 @@
+title: BlackOps Terminal Bridge
+description: "A real Windows shell running inside Call of Duty: Black Ops' easter-egg terminal."
+theme: jekyll-theme-hacker
+show_downloads: false
+exclude:
+  - report.tex
