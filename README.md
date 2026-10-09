@@ -7,7 +7,7 @@ rendered by the game's own text renderer.
 <p align="center">
   <img src="docs/demo.gif" alt="A real PowerShell session running inside the Call of Duty: Black Ops easter-egg terminal" width="760">
   <br>
-  <em>Walking up to the menu terminal, then a real shell: PowerShell, <code>ls</code> and <code>cd</code> over WSL, and ASCII art — all rendered by the game's own text renderer.</em>
+  <em>Walking up to the menu terminal, then a real shell: PowerShell, <code>ls</code> and <code>cd</code> over WSL, and moving ASCII art - all rendered by the game's own text renderer.</em>
 </p>
 
 The stock terminal is a hardcoded fake: a fixed command table, a scripted file
