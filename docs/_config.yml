@@ -4,3 +4,5 @@ theme: jekyll-theme-hacker
 show_downloads: false
 exclude:
   - report.tex
+  # Repo-facing doc: its links are relative to the repository, not the site.
+  - ARCHITECTURE.md

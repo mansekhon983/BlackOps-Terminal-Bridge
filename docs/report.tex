@@ -35,7 +35,7 @@
 \large Bridging the \emph{Call of Duty: Black Ops} (2010) easter-egg terminal to a
 real Windows shell, and building a full terminal emulator inside the game process}
 \author{Reverse-engineering \& implementation report}
-\date{June 2026}
+\date{June--July 2026}
 
 \begin{document}
 \maketitle
@@ -52,13 +52,13 @@ own terminal code. Two capabilities were built on top of the same reverse
 engineering: (1) a \emph{line-shell bridge} that runs typed commands in a real
 persistent \texttt{cmd.exe} and renders the output through the game's own text
 renderer; and (2) a \emph{full terminal emulator} --- a Windows pseudoconsole
-(ConPTY) driving a VT/ANSI parser and an 80$\times$27 character grid that is blitted
-straight into the engine's display memory each frame --- inside which interactive,
-full-screen programs run. The headline result: \textbf{Claude Code itself runs and
-renders correctly inside the Black Ops terminal}, with colour, live spinners, and
-keyboard input. This report documents how every piece works in detail, the notable
-discoveries made while reversing the binary, and every error encountered together
-with its fix.
+(ConPTY) driving a VT/ANSI parser and a character grid that is blitted straight into
+the engine's display memory each frame --- inside which interactive, full-screen
+programs run, in 24-bit colour, over an 8000-line scroll-back. The headline result:
+\textbf{Claude Code itself runs and renders correctly inside the Black Ops terminal},
+with colour, live spinners, and keyboard input. This report documents how every piece
+works in detail, the notable discoveries made while reversing the binary, and every
+error encountered together with its fix.
 \end{abstract}
 
 \tableofcontents
@@ -230,7 +230,7 @@ the emulator was built.
 This is the core of the project. The pipeline is:
 
 \begin{lstlisting}
-ConPTY child (cmd.exe) --> reader thread --> vt::Parser --> grid::Screen (80x27)
+ConPTY child (PowerShell) --> reader thread --> vt::Parser --> grid::Screen
         --> emuBlit() paints engine grid each frame --> engine renderer draws it
 input: WndProc subclass --> VT bytes --> ConPTY stdin
 \end{lstlisting}
@@ -256,9 +256,11 @@ A small state machine (ground / escape / CSI) interprets the child's output:
   /restore (\ic{ESC 7/8}, \ic{CSI s/u}), ECH \ic{CSI X}, ICH \ic{CSI @}, DCH \ic{CSI P},
   IL \ic{CSI L}, DL \ic{CSI M}, VPA \ic{CSI d}, RI \ic{ESC M}.
   \item \textbf{Colour (SGR):} the 16 ANSI colours plus 256-colour (\ic{38;5;n}) and
-  truecolour (\ic{38;2;r;g;b}), each mapped to nearest ANSI-8 by
-  \ic{xterm256ToAnsi8}/\ic{rgbToAnsi8}. Background SGR is consumed but ignored (the
-  engine cell stores foreground only).
+  truecolour (\ic{38;2;r;g;b}), all resolved to a \textbf{24-bit RGB} foreground per
+  cell: \ic{30-37}/\ic{90-97} map through an xterm-style 16-colour table,
+  \ic{38;5;n} through the 256-colour cube, and \ic{38;2} passes straight through
+  (Section~\ref{sec:truecolour}). Background SGR is consumed but ignored (an engine
+  cell stores a foreground only).
   \item \textbf{UTF-8:} multi-byte sequences are decoded to a codepoint (one grid cell
   each) and mapped to ASCII: box-drawing $\rightarrow$ \texttt{| - + =}, blocks
   $\rightarrow$ \texttt{\# : .}, braille (spinners) $\rightarrow$ \texttt{*}, smart
@@ -272,12 +274,16 @@ A small state machine (ground / escape / CSI) interprets the child's output:
 
 \subsection{Grid model (\texttt{src/grid.\{h,cpp\}})}
 
-\ic{grid::Screen} is an 80$\times$27 array of \ic{\{char, color\}} cells with a cursor,
-the current SGR colour, a scroll region, a saved-cursor slot, a scroll-back history
-\ic{deque}, a view offset for paging, and an alt-screen flag. Colour is kept in ANSI
-space (0--7, bright 8--15); the mapping to the engine palette happens later, at blit
-time. A subtle but important member is \ic{wrapPending_}, the deferred-wrap flag
-(Section~\ref{sec:decawm}).
+\ic{grid::Screen} is a grid of \ic{\{char, rgb\}} cells with a cursor, the current SGR
+colour, a scroll region, a saved-cursor slot, a scroll-back history \ic{deque}, a view
+anchor for paging, and an alt-screen flag. Each cell carries a true 24-bit foreground
+(a sentinel distinguishes ``terminal default'' from real white). A subtle but important
+member is \ic{wrapPending_}, the deferred-wrap flag (Section~\ref{sec:decawm}).
+
+The grid is \textbf{8000 rows tall} and the engine's 27 visible rows window over it
+(Section~\ref{sec:scrollback}); the original design used a flat 80$\times$27 screen with
+a separate scroll-back deque, which could not retain the output of a TUI that repaints
+in place.
 
 \subsection{Input: WndProc subclass (\texttt{src/hooks.cpp})}
 \label{sec:input}
@@ -361,23 +367,42 @@ Section~\ref{sec:errcolour} and Section~\ref{sec:errvisible}; the final blit is 
 
 \begin{enumerate}[nosep]
   \item \textbf{Pass 1 --- glyphs + desired colour.} Copy each grid cell's glyph into
-  \texttt{DAT_00bf56a0} and compute the desired engine colour (\ic{ansiToEngine(cell.color)})
-  into a parallel buffer. \emph{Spaces inherit the preceding glyph's colour}, so a lone
+  \texttt{DAT_00bf56a0} and its true 24-bit foreground into the parallel
+  \ic{g_trueRGB} buffer. \emph{Spaces inherit the preceding glyph's colour}, so a lone
   one-cell coloured character (e.g. a \texttt{|} border) extends across the following
   space into a two-cell segment the engine can colour (it cannot isolate a one-cell run).
-  \item \textbf{Pass 2 --- attributes (filler scheme) + NUL termination.} For each colour
-  segment, the interior cells get a ``filler'' attribute equal to the \emph{previous}
-  segment's colour (always different from this segment, so the run boundary lands exactly
-  on the segment end) and only the segment's \emph{last} cell carries the real colour
-  (Property B). Every row is then NUL-terminated after its last glyph so runs stay bounded
-  (Property A); a fully blank row becomes all-NUL and is skipped cleanly.
+  \item \textbf{Pass 2 --- attributes (run-break IDs) + NUL termination.} Attribute
+  nibbles are assigned purely as \emph{run-break markers}: the nibble cycles
+  \texttt{1..7} whenever the true colour changes, so the engine's draw loop still splits
+  the row into the correct runs (the actual colour of each run is supplied separately, see
+  below). Within a segment only the \emph{last} cell carries the break, so the run
+  boundary lands exactly on the segment end (Property B). Every row is then
+  NUL-terminated after its last glyph so runs stay bounded (Property A); a fully blank
+  row becomes all-NUL and is skipped cleanly.
 \end{enumerate}
 
 \noindent
-After the blit, the frame hook pins \ic{reveal = write} to disable the typewriter half.
-The engine palette, calibrated live, is: nibble \texttt{0} = white (the game's native
-default), \texttt{2} = black, \texttt{3..8} = red/green/yellow/blue/magenta/cyan,
-\texttt{9..F} = white. \ic{ansiToEngine} maps ANSI white to \texttt{0} (no hacks).
+After the blit, the frame hook pins \ic{reveal = write} to disable the typewriter half
+whenever instant rendering is in effect.
+
+\subsection{Near-truecolour rendering}
+\label{sec:truecolour}
+
+The engine exposes only eight usable colour slots through the attribute nibble, which
+was a hard ceiling on fidelity: an earlier revision mapped every ANSI/256/truecolour
+value down to the nearest of eight, and the compromises were visible (dark grey
+PSReadLine parameter text vanished, the logo and its box disagreed, and the ``thinking''
+spinner's brightening orange flipped between red and yellow instead of shimmering).
+
+Colour is now routed around the palette entirely. \ic{emuBlit} fills \ic{g_trueRGB}
+with each cell's real 24-bit foreground and uses the attribute nibbles only as run-break
+IDs; the \textbf{glyph-run hook} (\texttt{FUN_005f4a90}) then overrides the run's colour
+argument with a stack \ic{float[4]} RGBA built from \ic{g_trueRGB}. This is safe because
+the engine copies the colour synchronously, per run, before returning. Two deliberate
+exceptions remain: pure black folds to white (black-on-black would be invisible against
+the terminal background), and bright-black comes through as a real grey rather than
+being clamped, which is what makes dark parameter text readable. The old
+\ic{ansiToEngine} palette mapping is gone.
 
 \section{Notable and interesting findings}
 
@@ -581,16 +606,94 @@ it loaded (linker \texttt{LNK1104}) --- the game must be closed before each buil
 (b) chaining a \texttt{git commit} with a here-string under PowerShell failed, so commits
 were made through a POSIX shell.
 
+\section{Fidelity work: reveal, scroll-back, and codepage}
+\label{sec:scrollback}
+
+Three further rounds of work followed the renderer deep dive. Each started from a
+reverse-engineering finding rather than from trial and error.
+
+\subsection{Matching the native typewriter reveal}
+
+\texttt{DumpTimer.java} identified \texttt{FUN_0062ef60} as \ic{Sys_Milliseconds()}
+(a \ic{timeGetTime}-based counter), and showed that \ic{frame_render}'s typewriter half
+reveals \ic{now_ms - last_ms} work-units per frame --- one glyph or one control entry
+each. The native terminal therefore reveals text at \textbf{${\approx}1$ glyph/ms}.
+
+The emulator now reproduces that exactly: the reader thread only \emph{buffers} raw pty
+bytes, and the per-frame \ic{emuPump} meters them into the parser against the same
+clock, counting \emph{visible} glyphs via \ic{Screen::produced()} so control sequences
+cost nothing. Shell output appears with the same cadence as the game's own text; large
+backlogs fast-forward above a cap.
+
+Full-screen TUIs are unusable at 1 glyph/ms, so they are detected and rendered
+instantly. Detection keys off the stream moving the cursor \emph{upward} --- alt-screen,
+\ic{CUU}, reverse-index, or an absolute \ic{CUP}/\ic{VPA} to a higher row
+(\ic{Screen::repaint()}) --- which is the signature of an application repainting in
+place rather than appending. \ic{Ctrl+\textbackslash} forces instant mode permanently.
+
+\subsection{Suppressing the game's own caret}
+
+In emu mode the engine kept drawing its native input caret, and it \emph{drifted
+rightward} across the screen. The decompile explained both halves: \ic{frame_render}
+draws the game's own input-line text (\texttt{DAT_00a321c4}) at screen line \texttt{0x23}
+with a blink alpha, and its x-coordinate is the \emph{previous} row's accumulated pixel
+width --- the accumulator is never reset --- so the caret tracked the width of whatever
+the emulator had just drawn on the row above.
+
+The obvious fix, blanking the string, crashes: \texttt{DAT_00a321c4} is in
+\textbf{\texttt{.rdata}}, read-only. Instead the glyph-run drawer
+(\texttt{FUN_005f4a90}) is hooked and the single call whose text pointer equals that
+address is skipped. The emulator draws its own blinking block cursor, which also blinks
+correctly when sitting on top of a glyph.
+
+\subsection{A unified windowed scroll-back}
+
+The original design --- a flat 80$\times$27 screen with a separate scroll-back deque ---
+could not retain the output of an application that repaints in place. Offline replay
+through \texttt{tools/feed_log.cpp} measured this directly: Claude Code clips every
+render to the terminal height it was told about and repaints in the same cells,
+producing \textbf{zero} scroll-back of its own (history peak $=0$). No amount of
+scroll-back bookkeeping on our side would help, because nothing ever scrolls off.
+
+The fix was to make the viewport itself the history. The grid and the PTY height
+reported to the child are both \textbf{8000 rows}; the engine's 27 visible rows window
+over it, bottom-anchored, with large blank gaps collapsed so a TUI's content tail and
+its input line render together and auto-follow new output. One model now serves both
+cases --- plain scrolling output and in-place repaints --- where the earlier
+split-view and tall-grid experiments each handled only one.
+
+Scrolling is driven by \ic{WM_MOUSEWHEEL} (plus PgUp/PgDn), with a visual scrollbar.
+The scrollbar is itself constrained by Property~A: because the glyph emitter does a
+\ic{strlen} per run and skips rows whose first character is NUL, a dedicated scrollbar
+column would cost vertex budget on every row. So the thumb instead \emph{recolours} the
+rightmost content column on its own rows --- cyan, or blue over cyan --- preserving
+whatever glyph is there, and only thumb rows pay anything.
+
+\subsection{Codepage and shell}
+
+The font atlas turned out to be \textbf{ISO-8859-1}, not ASCII-only as first assumed,
+so \ic{U+00A0..U+00FF} now pass straight through instead of degrading to \texttt{?} ---
+accented characters and common symbols render correctly. Box-drawing and block glyphs
+genuinely have no entries in the atlas and remain ASCII approximations.
+
+The default emu shell became \textbf{PowerShell} (pwsh 7 if present, else Windows
+PowerShell 5.1, else \texttt{cmd.exe}), with UTF-8 forced on the console and on
+\ic{Get-Content}/\ic{Set-Content} so UTF-8 files render correctly. \texttt{cls} clearing
+the scroll-back needed its own handling, documented in Section~\ref{sec:renderer}: it
+emits no \ic{ED} sequence at all.
+
 \section{Result and current state}
 
 Claude Code runs and renders correctly inside the Black Ops terminal: the welcome box,
 colours, box-drawing borders (as ASCII), the live red$\leftrightarrow$yellow ``thinking''
 spinner, scroll-back paging, and keyboard input all work; \texttt{ssh}, \texttt{python},
-and ordinary CLI tools run from a native 64-bit shell started in the user's home
-directory. All debug scaffolding has been removed. The reverse-engineering record lives
-in \texttt{notes/offsets.md} (the curated function/global table) and
+\texttt{vim} and \texttt{htop} run from a native 64-bit PowerShell started in the user's
+home directory. Text renders in 24-bit colour over an 8000-line scroll-back with
+mouse-wheel scrolling and a visual scrollbar, in Latin-1, revealed at the terminal's
+own native rate. All debug scaffolding has been removed. The reverse-engineering record
+lives in \texttt{notes/offsets.md} (the curated function/global table) and
 \texttt{notes/re-log.md} (the chronological log), backed by the raw decompiles in
-\texttt{notes/} and the re-runnable Ghidra scripts in \texttt{ghidra_scripts/}.
+\texttt{notes/dumps/} and the re-runnable Ghidra scripts in \texttt{ghidra_scripts/}.
 
 The project demonstrates, end to end, that a modern interactive TUI can be hosted inside
 a 2010 game's hardcoded easter-egg terminal --- with no source, no symbols, and no

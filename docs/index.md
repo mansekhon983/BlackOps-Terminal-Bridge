@@ -13,6 +13,17 @@ real host shell onto it. You type in the game; a real PowerShell runs on your PC
 output is painted back into the in-game scrollback — correct font, colours, wrapping,
 and all.
 
+<!--
+  TODO(demo gif): drop the recording at docs/demo.gif, then delete these two
+  comment markers to show it here as well as in the README.
+
+<p align="center">
+  <img src="demo.gif" alt="vim running inside the Call of Duty: Black Ops in-game terminal" width="760">
+  <br>
+  <em>vim, running in the game's own easter-egg terminal</em>
+</p>
+-->
+
 [View the source on GitHub](https://github.com/mansekhon983/BlackOps-Terminal-Bridge)
 
 ## What it does
@@ -34,10 +45,15 @@ An injected DLL (`bo1bridge.dll`, x86) inline-hooks three points in the engine w
 terminal's glyph renderer (reused to paint our grid), and the per-frame tick.
 
 A [ConPTY](https://learn.microsoft.com/windows/console/pseudoconsoles) child process runs
-the real shell. A reader thread feeds its output through a VT/ANSI parser into an 80×27
-screen model with an 8000-line scrollback, which is blitted into the engine's own
-character and attribute grids each frame. All engine calls happen on the main thread via
-the frame hook — calling them from the worker thread crashes the game.
+the real shell. A reader thread feeds its output through a VT/ANSI parser into a screen
+model with an 8000-line scrollback, which is blitted into the engine's own character and
+attribute grids each frame. All engine calls happen on the main thread via the frame
+hook — calling them from the worker thread crashes the game.
+
+The full story — how the renderer's shared vertex budget silently culls the bottom rows,
+why run colour comes from the wrong cell, and how 24-bit colour gets past an 8-slot
+palette — is in the
+[architecture write-up](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/blob/master/docs/ARCHITECTURE.md).
 
 ## Quick start
 
@@ -69,9 +85,19 @@ single-machine novelty. Do not expose it over a network.
 
 ## Reverse-engineering notes
 
-The confirmed offsets, signature patterns, and the full RE log live in the
-[`notes/`](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/tree/master/notes)
-directory of the repository.
+The [architecture write-up](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/blob/master/docs/ARCHITECTURE.md)
+covers the method (finding the engine's terminal routines by cross-referencing its own
+hardcoded response strings), the functions and display globals that were recovered, and
+the renderer internals the emulator is built around.
+
+The confirmed offsets and signature patterns are in
+[`notes/offsets.md`](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/blob/master/notes/offsets.md),
+the session-by-session log in
+[`notes/re-log.md`](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/blob/master/notes/re-log.md),
+and the raw Ghidra decompiles plus the re-runnable headless recon scripts in
+[`notes/dumps/`](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/tree/master/notes/dumps)
+and
+[`ghidra_scripts/`](https://github.com/mansekhon983/BlackOps-Terminal-Bridge/tree/master/ghidra_scripts).
 
 ---
 
