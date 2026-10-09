@@ -4,17 +4,11 @@ Turn the easter-egg terminal hidden in the **Call of Duty: Black Ops (2010)** ma
 menu into a **real, working shell** — running inside the actual game process,
 rendered by the game's own text renderer.
 
-<!--
-  TODO(demo gif): drop the recording at docs/demo.gif, then delete these two
-  comment markers to show it. Left commented so the README never shows a broken
-  image before the file lands.
-
 <p align="center">
-  <img src="docs/demo.gif" alt="vim running inside the Call of Duty: Black Ops in-game terminal" width="760">
+  <img src="docs/demo.gif" alt="A real PowerShell session running inside the Call of Duty: Black Ops easter-egg terminal" width="760">
   <br>
-  <em>vim, running in the game's own easter-egg terminal</em>
+  <em>Walking up to the menu terminal, then a real shell: PowerShell, <code>ls</code> and <code>cd</code> over WSL, and ASCII art — all rendered by the game's own text renderer.</em>
 </p>
--->
 
 The stock terminal is a hardcoded fake: a fixed command table, a scripted file
 system, canned responses, plus the embedded Zork and Dead Ops Arcade games. It has

@@ -13,16 +13,11 @@ real host shell onto it. You type in the game; a real PowerShell runs on your PC
 output is painted back into the in-game scrollback — correct font, colours, wrapping,
 and all.
 
-<!--
-  TODO(demo gif): drop the recording at docs/demo.gif, then delete these two
-  comment markers to show it here as well as in the README.
-
 <p align="center">
-  <img src="demo.gif" alt="vim running inside the Call of Duty: Black Ops in-game terminal" width="760">
+  <img src="demo.gif" alt="A real PowerShell session running inside the Call of Duty: Black Ops easter-egg terminal" width="760">
   <br>
-  <em>vim, running in the game's own easter-egg terminal</em>
+  <em>Walking up to the menu terminal, then a real shell: PowerShell, <code>ls</code> and <code>cd</code> over WSL, and ASCII art — all rendered by the game's own text renderer.</em>
 </p>
--->
 
 [View the source on GitHub](https://github.com/mansekhon983/BlackOps-Terminal-Bridge)
 
